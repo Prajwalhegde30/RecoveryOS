@@ -186,7 +186,7 @@ It keeps job state close to financial state, supports transactional case/job cha
 Very high throughput or complex scheduling may later justify a queue. Polling and locking must be implemented carefully.
 
 **Consequences**  
-Job leases, dead-letter status, startup reconciliation, and idempotent replay are required in the worker contract.
+Job leases, startup reconciliation, bounded retry, terminal failure status, and idempotent replay are required in the MVP worker contract. A dedicated dead-letter queue/workflow is a Stretch extension and must not block MVP completion.
 
 **Status**  
 Proposed — pending architecture approval.

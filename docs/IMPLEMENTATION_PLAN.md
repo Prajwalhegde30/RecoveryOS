@@ -948,18 +948,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Prerequisites:** Sprint 16.1.
 
-**Dependencies:** Provider failure injection, job DLQ/replay, health/observability.
+**Dependencies:** Provider failure injection, terminal job failure and replay-safe identity, health/observability; dedicated DLQ infrastructure is optional Stretch.
 
 **Tasks**
 
 - [ ] Inject webhook processing, database, AI, payment, messaging, rate-limit, and worker failures.
-- [ ] Verify bounded retries/backoff, stale-job handling, expired lease recovery, dead-letter status, and safe replay.
+- [ ] Verify bounded retries/backoff, stale-job handling, expired lease recovery, terminal failure status, and safe replay; exercise dedicated DLQ behavior only if the optional Stretch capability exists.
 - [ ] Verify no duplicate financial/outbound effects after retries or restarts.
 - [ ] Verify degraded UI states and operator-visible remediation hints.
 
 **Files / Modules Affected:** Failure test harness, adapters, worker, API/frontend error states, observability.
 
-**Tests:** Invalid AI output, provider outage, database unavailable, worker restart, dead-letter replay, stale recommendation, payment verification unavailable, partial dashboard.
+**Tests:** Invalid AI output, provider outage, database unavailable, worker restart, terminal failure and safe replay, stale recommendation, payment verification unavailable, partial dashboard; dedicated DLQ replay is optional Stretch coverage.
 
 **Sprint Exit Criteria:** Failure scenarios are deterministic, safe, observable, and recoverable according to policy.
 

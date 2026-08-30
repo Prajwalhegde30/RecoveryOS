@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -5,7 +7,15 @@ from sqlalchemy.pool import StaticPool
 
 from app.ai.contracts import ActionType
 from app.persistence.base import Base
-from app.persistence.models import AuditEvent, PolicyVersion
+from app.persistence.models import (
+    AuditEvent,
+    Obligation,
+    PolicyVersion,
+    RecoveryCase,
+    RecoveryCaseStatus,
+)
+from app.policy.decision_service import PolicyDecisionService
+from app.policy.evaluator import PolicyEvaluationContext, PolicyResult
 from app.policy.schema import Channel, MerchantPolicyDocument, PolicyVersionStatus
 from app.policy.service import PolicyService
 
@@ -113,3 +123,128 @@ def test_policy_activation_rejects_superseded_version() -> None:
         session.rollback()
         with pytest.raises(ValueError, match="only a draft"):
             service.activate(first_id, actor_id="admin-1")
+
+
+def test_policy_decision_uses_authoritative_obligation_amount_and_audits_result() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        obligation = Obligation(
+            merchant_id="merchant_decision",
+            obligation_type="payment",
+            external_obligation_id="order_decision",
+            amount_at_risk=10_000,
+            currency="INR",
+            status="open",
+            authoritative_status="unpaid",
+        )
+        session.add(obligation)
+        session.flush()
+        case = RecoveryCase(
+            merchant_id="merchant_decision",
+            obligation_id=obligation.id,
+            source_type="payment.failed",
+            status=RecoveryCaseStatus.ACTION_PENDING,
+            attempt_count=0,
+            max_attempts_snapshot=3,
+            recovered_amount=0,
+            currency="INR",
+            attribution_status="pending",
+        )
+        session.add(case)
+        session.flush()
+        case_id = case.id
+        session.commit()
+
+        policy_version = PolicyService(session, "merchant_decision").create_draft(
+            policy(), actor_id="admin-1"
+        )
+        policy_version_id = policy_version.id
+        session.rollback()
+        PolicyService(session, "merchant_decision").activate(policy_version_id, actor_id="admin-1")
+        session.rollback()
+
+        context = PolicyEvaluationContext(
+            action_type=ActionType.SEND_EMAIL,
+            case_status=RecoveryCaseStatus.ACTION_PENDING,
+            amount_at_risk_minor_units=50_000_000,
+            now=datetime(2026, 1, 1, 12, tzinfo=UTC),
+        )
+        decision = PolicyDecisionService(session, "merchant_decision").evaluate_and_persist(
+            case_id,
+            policy_version_id,
+            context,
+        )
+        assert decision.result == PolicyResult.ALLOW
+        assert decision.input_snapshot_json["amount_at_risk_minor_units"] == 10_000
+
+
+def test_approval_requires_admin_and_returns_case_to_pending_work() -> None:
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        obligation = Obligation(
+            merchant_id="merchant_approval",
+            obligation_type="payment",
+            external_obligation_id="order_approval",
+            amount_at_risk=10_000,
+            currency="INR",
+            status="open",
+            authoritative_status="unpaid",
+        )
+        session.add(obligation)
+        session.flush()
+        case = RecoveryCase(
+            merchant_id="merchant_approval",
+            obligation_id=obligation.id,
+            source_type="payment.failed",
+            status=RecoveryCaseStatus.ACTION_PENDING,
+            attempt_count=0,
+            max_attempts_snapshot=3,
+            recovered_amount=0,
+            currency="INR",
+            attribution_status="pending",
+        )
+        session.add(case)
+        session.flush()
+        case_id = case.id
+        session.commit()
+
+        approval_policy = policy().model_copy(update={"approval_threshold_minor_units": 10_000})
+        version = PolicyService(session, "merchant_approval").create_draft(
+            approval_policy, actor_id="admin-1"
+        )
+        version_id = version.id
+        session.rollback()
+        PolicyService(session, "merchant_approval").activate(version_id, actor_id="admin-1")
+        session.rollback()
+        decision_service = PolicyDecisionService(session, "merchant_approval")
+        decision = decision_service.evaluate_and_persist(
+            case_id,
+            version_id,
+            PolicyEvaluationContext(
+                action_type=ActionType.SEND_EMAIL,
+                case_status=RecoveryCaseStatus.ACTION_PENDING,
+                amount_at_risk_minor_units=10_000,
+                now=datetime(2026, 1, 1, 12, tzinfo=UTC),
+            ),
+        )
+        assert decision.result == PolicyResult.REQUIRE_APPROVAL
+        session.rollback()
+        assert session.get(RecoveryCase, case_id).status == RecoveryCaseStatus.ESCALATED
+        session.rollback()
+
+        resolved = decision_service.resolve_approval(
+            case_id,
+            version_id,
+            approved=True,
+            admin_id="admin-1",
+            reason="approved for controlled operator execution",
+        )
+        assert resolved.result == PolicyResult.ALLOW
+        session.rollback()
+        assert session.get(RecoveryCase, case_id).status == RecoveryCaseStatus.ACTION_PENDING

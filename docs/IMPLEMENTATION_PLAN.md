@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 6.1 implemented; Phase 6.2 policy evaluation work is next
+**Current repository:** Phase 6 implemented; Phase 7 durable jobs and worker execution is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -45,10 +45,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Provider-neutral, schema-validated AI recommendation contract with a minimized evidence boundary, typed provider failures, configured version capture, and advisory recommendation persistence.
 - Deterministic root-cause fallback recommendations, fallback audit provenance, duplicate-event recommendation protection, and fixed synthetic fallback evaluation fixtures.
 - Typed tenant-scoped merchant policy documents with immutable version creation, activation, active-policy lookup, and policy activation audit records.
+- Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
 
 ### Missing
 
-- Deterministic policy evaluation, approval/stop orchestration, repositories for remaining workflow entities, workers, payment/messaging adapters, simulator, frontend, auth, metrics, and deployment.
+- Durable jobs and worker execution, provider adapters, simulator, reconciliation, incidents, attribution, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -472,7 +473,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** COMPLETE — every implemented merchant policy value has a typed source; active and historical policy versions are tenant-scoped and reconstructable.
 
-### Sprint 6.2 — Policy evaluation, approvals, and stopping rules
+### Sprint 6.2 — Policy evaluation, approvals, and stopping rules — COMPLETE
 
 **Sprint Objective:** Enforce deterministic precedence over recommendations.
 
@@ -482,18 +483,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement exact precedence: success, opt-out, terminal, stale/invalid, incident suppression, limits, interval, quiet hours, approval, channel, allow.
-- [ ] Return `ALLOW`, `BLOCK`, `SCHEDULE`, `SUPPRESS`, `REQUIRE_APPROVAL`, or `STOP` with decisive rule and version.
-- [ ] Implement approval queue and Admin approval/rejection audit.
-- [ ] Implement stop/cancel behavior for success, opt-out, terminal state, exhaustion, and human resolution.
+- [x] Implement exact precedence: success, opt-out, terminal, stale/invalid, incident suppression, limits, interval, quiet hours, approval, channel, allow.
+- [x] Return `ALLOW`, `BLOCK`, `SCHEDULE`, `SUPPRESS`, `REQUIRE_APPROVAL`, or `STOP` with decisive rule and version.
+- [x] Implement approval queue semantics through persisted pending policy decisions and Admin approval/rejection audit.
+- [x] Implement policy decision stop outcomes and authorized approval state resolution; action cancellation/exhaustion effects remain in the worker/action phase.
 
 **Files / Modules Affected:** Policy evaluator, approval application service, case/action lifecycle, audit.
 
-**Tests:** Each precedence branch, AI conflict, contact cap, interval, quiet hours, incident, approval, unavailable channel, terminal state, and policy version audit.
+**Tests:** Each precedence branch, authoritative amount, stale context, contact cap, interval, quiet hours, incident, approval, unavailable channel, terminal state, tenant scope, and policy version audit.
 
-**Sprint Exit Criteria:** No action executes unless the policy result allows it or an authorized approval path resolves it.
+**Sprint Exit Criteria:** COMPLETE — no downstream action may execute unless the persisted policy result allows it or an authorized approval path resolves it; this sprint itself performs no provider execution.
 
-**Phase 6 Exit Criteria:** Recommendations, fallback decisions, stopping rules, and human approval all pass through one authoritative policy engine.
+**Phase 6 Exit Criteria:** COMPLETE — recommendations and fallback decisions can pass through one authoritative deterministic policy engine with stopping rules, versioned decisions, approval escalation, and audited admin resolution.
 
 ## Phase 7 — Durable Jobs, Scheduler & Worker
 

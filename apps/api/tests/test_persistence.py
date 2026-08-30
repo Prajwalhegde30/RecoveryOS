@@ -78,3 +78,37 @@ def test_one_recovery_case_per_obligation_is_enforced() -> None:
         with pytest.raises(IntegrityError):
             with session.begin_nested():
                 session.flush()
+
+
+def test_negative_money_is_rejected_by_database_constraint() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    sessions = sessionmaker(bind=engine)
+
+    with sessions.begin() as session:
+        session.add(
+            Merchant(
+                external_key="merchant_negative",
+                name="Demo Merchant",
+                default_currency="INR",
+                timezone="Asia/Kolkata",
+                environment_mode="demo",
+                status="active",
+            )
+        )
+        session.flush()
+        merchant = session.query(Merchant).filter_by(external_key="merchant_negative").one()
+        session.add(
+            Obligation(
+                merchant_id=merchant.id,
+                obligation_type="payment",
+                external_obligation_id="negative_order",
+                amount_at_risk=-1,
+                currency="INR",
+                status="open",
+                authoritative_status="failed",
+            )
+        )
+        with pytest.raises(IntegrityError):
+            with session.begin_nested():
+                session.flush()

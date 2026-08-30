@@ -8,6 +8,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -149,6 +150,8 @@ class Obligation(TimestampMixin, Base):
             name="uq_obligations_identity",
         ),
         Index("ix_obligations_merchant_status", "merchant_id", "status"),
+        CheckConstraint("amount_at_risk >= 0", name="ck_obligations_amount_nonnegative"),
+        CheckConstraint("length(currency) = 3", name="ck_obligations_currency_code"),
     )
 
 
@@ -182,6 +185,8 @@ class RecoveryCase(TimestampMixin, Base):
         Index("ix_cases_merchant_status", "merchant_id", "status"),
         Index("ix_cases_merchant_priority", "merchant_id", "priority_score"),
         Index("ix_cases_merchant_customer", "merchant_id", "customer_id"),
+        CheckConstraint("recovered_amount >= 0", name="ck_cases_recovered_amount_nonnegative"),
+        CheckConstraint("length(currency) = 3", name="ck_cases_currency_code"),
     )
 
 
@@ -203,6 +208,8 @@ class PaymentAttempt(TimestampMixin, Base):
         UniqueConstraint(
             "merchant_id", "provider", "external_payment_id", name="uq_payment_identity"
         ),
+        CheckConstraint("amount >= 0", name="ck_payment_attempts_amount_nonnegative"),
+        CheckConstraint("length(currency) = 3", name="ck_payment_attempts_currency_code"),
     )
 
 
@@ -329,6 +336,7 @@ class RecoveryAction(Base):
     correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
     __table_args__ = (
         UniqueConstraint("merchant_id", "idempotency_key", name="uq_action_idempotency"),
+        CheckConstraint("cost_minor_units >= 0", name="ck_actions_cost_nonnegative"),
     )
 
 
@@ -433,6 +441,10 @@ class AttributionRecord(TimestampMixin, Base):
     adjustment_amount: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     confidence: Mapped[int | None] = mapped_column(Integer)
     limitations: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("recovered_amount >= 0", name="ck_attribution_recovered_nonnegative"),
+    )
 
 
 class AuditEvent(Base):

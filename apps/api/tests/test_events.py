@@ -86,6 +86,22 @@ def test_event_ingestion_is_idempotent_and_persists_normalized_facts() -> None:
         assert len(session.scalars(select(RevenueEventRecord)).all()) == 1
 
 
+def test_failed_event_can_be_replayed_without_new_identity() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        service = EventIngestionService(session, "simulator")
+        service.ingest(event("evt_failed"))
+        service.mark_processing_failed("merchant_1", "evt_failed")
+        replayed = service.replay("merchant_1", "evt_failed")
+
+        assert replayed.duplicate is False
+        assert replayed.status == "accepted"
+        assert len(session.scalars(select(ProcessedEvent)).all()) == 1
+        assert len(session.scalars(select(RevenueEventRecord)).all()) == 1
+
+
 def test_webhook_rejects_bad_signature_before_persistence() -> None:
     get_settings().webhook_secret = "test-secret"
     response = TestClient(app).post(

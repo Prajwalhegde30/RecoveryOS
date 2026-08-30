@@ -6,7 +6,7 @@
 **Decision record:** [DECISIONS.md](./DECISIONS.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)
 
-**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, and signed webhook boundary are implemented. Recovery Case workflows, repositories for remaining workflow operations, workers, integrations, authentication, and dashboard workflows remain planned for later phases.
+**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, and safe replay handling are implemented. Recovery Case workflows, repositories for remaining workflow operations, workers, integrations, authentication, and dashboard workflows remain planned for later phases.
 
 ## 1. Purpose and architectural goals
 

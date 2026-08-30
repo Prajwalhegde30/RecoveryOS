@@ -81,6 +81,56 @@ class EventIngestionService:
         )
         if record is None:
             raise LookupError("event not found")
+        processed = self.session.scalar(
+            select(ProcessedEvent).where(
+                ProcessedEvent.merchant_id == merchant_id,
+                ProcessedEvent.provider == self.provider,
+                ProcessedEvent.idempotency_key == event_id,
+            )
+        )
+        if processed is None:
+            raise LookupError("processed event not found")
         payload = RevenueEvent.model_validate(record.normalized_payload)
+        was_failed = processed.result == "failed"
+        correlation_id = processed.correlation_id
         self.session.rollback()
+        if was_failed:
+            with self.session.begin():
+                self.session.execute(
+                    select(ProcessedEvent)
+                    .where(ProcessedEvent.id == processed.id)
+                    .with_for_update()
+                ).scalar_one().result = "accepted"
+                self.session.execute(
+                    select(RevenueEventRecord)
+                    .where(RevenueEventRecord.id == record.id)
+                    .with_for_update()
+                ).scalar_one().processing_status = "RECEIVED"
+            return EventIngestionResult(
+                event_id=event_id,
+                status="accepted",
+                duplicate=False,
+                correlation_id=correlation_id,
+            )
         return self.ingest(payload)
+
+    def mark_processing_failed(self, merchant_id: str, event_id: str) -> None:
+        with self.session.begin():
+            processed = self.session.scalar(
+                select(ProcessedEvent).where(
+                    ProcessedEvent.merchant_id == merchant_id,
+                    ProcessedEvent.provider == self.provider,
+                    ProcessedEvent.idempotency_key == event_id,
+                )
+            )
+            record = self.session.scalar(
+                select(RevenueEventRecord).where(
+                    RevenueEventRecord.merchant_id == merchant_id,
+                    RevenueEventRecord.provider == self.provider,
+                    RevenueEventRecord.external_event_id == event_id,
+                )
+            )
+            if processed is None or record is None:
+                raise LookupError("event not found")
+            processed.result = "failed"
+            record.processing_status = "FAILED"

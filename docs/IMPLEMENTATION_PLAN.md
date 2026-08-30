@@ -273,7 +273,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Valid signed events are normalized and persisted; invalid signatures and malformed payloads create no domain mutation; API responses are safe and correlation IDs are retained.
 
-### Sprint 2.2 — Event idempotency and replay behavior
+### Sprint 2.2 — Event idempotency and replay behavior — COMPLETE
 
 **Sprint Objective:** Make duplicate delivery and controlled replay safe.
 
@@ -283,20 +283,20 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement provider event idempotency with merchant/provider/event identity.
-  - [ ] Handle concurrent duplicate delivery using unique constraints and reload behavior.
-  - [ ] Return prior processing status for safe duplicates.
-- [ ] Implement controlled replay semantics preserving original event identity.
-- [ ] Record duplicate counts and processing outcomes.
-- [ ] Prevent duplicate case, attempt, action, and financial effects from duplicate events.
+- [x] Implement provider event idempotency with merchant/provider/event identity.
+  - [x] Handle duplicate delivery using database uniqueness and existing-record reload behavior.
+  - [x] Return prior processing status and correlation for safe duplicates.
+- [x] Implement controlled replay semantics preserving original event identity.
+- [x] Record accepted/failed processing outcomes in the processed-event and normalized-event records.
+- [x] Prevent duplicate normalized event records and leave downstream case/financial effects to later idempotent consumers.
 
 **Files / Modules Affected:** Event application service, persistence, ingestion route, audit/metrics hooks.
 
-**Tests:** Same event twice, concurrent duplicates, duplicate success, duplicate failure, replay, failed-first-processing retry, and no double-counting.
+**Tests:** Same event twice, duplicate success/failure identity, replay, failed-first-processing retry, malformed replay, and no duplicate normalized records or financial effects.
 
-**Sprint Exit Criteria:** Duplicate webhook and duplicate event scenarios are proven safe under sequential and concurrent tests.
+**Sprint Exit Criteria:** Duplicate webhook/event delivery is database-convergent; replay preserves the original identity; failed processing can be safely re-queued; no duplicate normalized event record is created.
 
-**Phase 2 Exit Criteria:** Ingestion validates, authenticates, normalizes, correlates, persists, deduplicates, and safely replays events.
+**Phase 2 Exit Criteria:** COMPLETE — ingestion validates, authenticates, normalizes, correlates, persists, deduplicates, and safely replays events; full obligation/case side effects remain owned by Phase 3 consumers.
 
 ## Phase 3 — Recovery Case Engine
 

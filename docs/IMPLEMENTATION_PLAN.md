@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phases 0–4 implemented; Phase 5 AI recommendation work is next
+**Current repository:** Phase 5.1 implemented; Phase 5.2 deterministic fallback and evaluation work is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -42,10 +42,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Canonical signed event contract, webhook signature verification, normalized event persistence, and correlation-ID generation.
 - Source-aware obligation identity resolution and one-case-per-obligation association for recoverable events.
 - PRD-aligned Recovery Case state machine with transactional audited transitions and terminal-state protection.
+- Provider-neutral, schema-validated AI recommendation contract with a minimized evidence boundary, typed provider failures, configured version capture, and advisory recommendation persistence.
 
 ### Missing
 
-- Event replay controls beyond the ingestion boundary, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
+- Deterministic AI fallback orchestration, recommendation evaluation fixtures, repositories for remaining workflow entities, workers, payment/messaging adapters, simulator, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -402,7 +403,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 5 — AI Recommendation Layer
 
-### Sprint 5.1 — AI contract and provider adapter
+### Sprint 5.1 — AI contract and provider adapter — COMPLETE
 
 **Sprint Objective:** Add advisory AI recommendations with strict structured output.
 
@@ -412,16 +413,16 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Define recommendation schema, action allow-list, parameter ranges, evidence fields, confidence, fallback action, prompt version, and model version.
-- [ ] Implement provider-neutral adapter with timeout, safe input minimization, redaction, and typed errors.
-- [ ] Version prompts/schema/configuration and persist the exact version references.
-- [ ] Keep AI provider SDK types out of domain/application contracts.
+- [x] Define recommendation schema, action allow-list, parameter validation, evidence fields, confidence, fallback action, prompt version, model version, and schema version.
+- [x] Implement provider-neutral adapter with timeout, safe input minimization, redaction-by-contract, and typed errors.
+- [x] Version prompts/schema/configuration and persist the exact version references on recommendations.
+- [x] Keep AI provider SDK types out of domain/application contracts.
 
 **Files / Modules Affected:** `apps/api` AI adapter, schemas, config, application recommendation service.
 
-**Tests:** Valid recommendation, unknown action, malformed parameters, unsupported tool, prompt/model metadata, timeout, provider error, tenant evidence isolation.
+**Tests:** Valid recommendation, unknown action, malformed parameters, forbidden/unsupported parameters, prompt/model metadata, timeout, provider error, tenant evidence isolation, stale case protection, and advisory persistence.
 
-**Sprint Exit Criteria:** AI can return a validated registered recommendation or a typed failure without mutating financial state.
+**Sprint Exit Criteria:** COMPLETE — AI can return a validated registered recommendation or a typed failure without mutating financial state; persisted recommendations retain source and version metadata and remain advisory.
 
 ### Sprint 5.2 — Deterministic fallback and AI evaluation
 

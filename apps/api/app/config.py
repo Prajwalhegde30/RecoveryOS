@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     scoring_incident_penalty_percent: int = Field(default=20, ge=-100, le=100)
     scoring_confidence_weight_percent: int = Field(default=50, ge=0, le=100)
     scoring_version: str = "scoring-v1"
+    ai_provider: str = "deterministic"
+    ai_model: str = ""
+    ai_timeout_ms: int | None = Field(default=None, gt=0)
+    ai_prompt_version: str = "prompt-v1"
+    ai_schema_version: str = "recommendation-v1"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

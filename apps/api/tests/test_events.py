@@ -15,7 +15,7 @@ from app.events.security import verify_signature
 from app.events.service import EventIngestionService
 from app.main import app
 from app.persistence.base import Base
-from app.persistence.models import ProcessedEvent, RecoveryCase
+from app.persistence.models import ProcessedEvent, Recommendation, RecoveryCase
 from app.persistence.models import RevenueEvent as RevenueEventRecord
 
 
@@ -153,3 +153,6 @@ def test_webhook_accepts_signed_event_with_injected_session() -> None:
         assert len(cases) == 1
         assert cases[0].root_cause == "temporary_payment_failure"
         assert cases[0].expected_recoverable_amount is not None
+        recommendations = session.scalars(select(Recommendation)).all()
+        assert len(recommendations) == 1
+        assert recommendations[0].source == "DETERMINISTIC_FALLBACK"

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.ai.contracts import ActionType, RecommendationEvidence, RecommendationOutput
+from app.ai.fallback import deterministic_fallback
 from app.ai.provider import (
     AIOutputValidationError,
     AITimeoutError,
@@ -54,6 +55,16 @@ def recommendation(**overrides: object) -> dict[str, object]:
     }
     value.update(overrides)
     return value
+
+
+SYNTHETIC_EVALUATION_CASES = (
+    ("temporary_payment_failure", ActionType.WAIT),
+    ("insufficient_funds", ActionType.SCHEDULE_RETRY),
+    ("expired_card", ActionType.REQUEST_PAYMENT_METHOD_UPDATE),
+    ("checkout_abandonment", ActionType.GENERATE_PAYMENT_LINK),
+    ("customer_cancellation", ActionType.STOP),
+    ("unknown", ActionType.ESCALATE_TO_HUMAN),
+)
 
 
 def test_recommendation_contract_allows_registered_actions_only() -> None:
@@ -120,6 +131,78 @@ def test_provider_failures_are_typed_and_safe() -> None:
             prompt_version="prompt-v1",
             model_version="model-v1",
         ).recommend(evidence())
+
+
+def test_deterministic_fallback_is_registered_and_root_cause_specific() -> None:
+    assert deterministic_fallback(evidence()).action == ActionType.WAIT
+    assert (
+        deterministic_fallback(evidence().model_copy(update={"root_cause": "expired_card"})).action
+        == ActionType.REQUEST_PAYMENT_METHOD_UPDATE
+    )
+    assert (
+        deterministic_fallback(evidence().model_copy(update={"root_cause": "unknown"})).action
+        == ActionType.ESCALATE_TO_HUMAN
+    )
+
+
+def test_fixed_synthetic_evaluation_fixture_covers_fallback_actions() -> None:
+    for root_cause, expected_action in SYNTHETIC_EVALUATION_CASES:
+        assert (
+            deterministic_fallback(evidence().model_copy(update={"root_cause": root_cause})).action
+            == expected_action
+        )
+
+
+def test_ai_failure_uses_auditable_deterministic_fallback() -> None:
+    provider = ProviderAdapter(
+        lambda payload: 1 / 0,
+        timeout_seconds=1,
+        prompt_version="prompt-v1",
+        model_version="model-v1",
+    )
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    event = RevenueEvent(
+        event_id="evt_ai_fallback",
+        event_type="payment.failed",
+        merchant_id="merchant_fallback",
+        source_object_id="order_fallback",
+        amount_minor_units=10000,
+        currency="INR",
+        payment_method="upi",
+        failure_code="UPI_TIMEOUT",
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    with Session(engine) as session:
+        EventIngestionService(session, "simulator").ingest(event)
+        case = RecoveryCaseService(session, "simulator", 3).associate(event)
+        assert case is not None
+        case_id = case.id
+        session.rollback()
+        CaseAnalysisService(
+            session,
+            "merchant_fallback",
+            ScoringConfig(50, 10, 20, 50, "scoring-v1"),
+        ).analyze(case_id)
+        session.rollback()
+        stored = AIRecommendationService(
+            session, "merchant_fallback", provider
+        ).recommend_with_fallback(case_id, minimum_confidence_percent=90)
+        assert stored.source == "DETERMINISTIC_FALLBACK"
+        assert stored.action_type == ActionType.WAIT
+        session.rollback()
+        fallback_audit = session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.entity_type == "recovery_case",
+                AuditEvent.entity_id == case_id,
+                AuditEvent.event_type == "AI_FALLBACK_USED",
+            )
+        )
+        assert fallback_audit is not None
 
 
 def test_ai_recommendation_persists_advisory_output_with_tenant_scope() -> None:

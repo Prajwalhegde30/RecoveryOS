@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.ai.service import AIRecommendationService
 from app.api.dependencies import get_db_session
 from app.cases.service import RecoveryCaseService
 from app.config import get_settings
@@ -49,7 +50,7 @@ async def receive_webhook(
         )
     result = EventIngestionService(session, provider).ingest(event)
     case = RecoveryCaseService(session, provider, settings.max_recovery_attempts).associate(event)
-    if case is not None:
+    if case is not None and not result.duplicate:
         case_id = case.id
         # Each application service owns a complete transaction; end any read transaction
         # opened while returning the case before starting analysis.
@@ -62,4 +63,8 @@ async def receive_webhook(
             version=settings.scoring_version,
         )
         CaseAnalysisService(session, event.merchant_id, scoring_config).analyze(case_id)
+        session.rollback()
+        # The external provider adapter is selected once provider configuration is approved.
+        # Until then, the same persistence path records the deterministic safe fallback.
+        AIRecommendationService(session, event.merchant_id, provider=None).fallback(case_id)
     return result

@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 5.1 implemented; Phase 5.2 deterministic fallback and evaluation work is next
+**Current repository:** Phase 5 implemented; Phase 6 policy engine work is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -43,10 +43,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Source-aware obligation identity resolution and one-case-per-obligation association for recoverable events.
 - PRD-aligned Recovery Case state machine with transactional audited transitions and terminal-state protection.
 - Provider-neutral, schema-validated AI recommendation contract with a minimized evidence boundary, typed provider failures, configured version capture, and advisory recommendation persistence.
+- Deterministic root-cause fallback recommendations, fallback audit provenance, duplicate-event recommendation protection, and fixed synthetic fallback evaluation fixtures.
 
 ### Missing
 
-- Deterministic AI fallback orchestration, recommendation evaluation fixtures, repositories for remaining workflow entities, workers, payment/messaging adapters, simulator, frontend, auth, metrics, and deployment.
+- Policy versioning/evaluation, repositories for remaining workflow entities, workers, payment/messaging adapters, simulator, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -424,7 +425,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** COMPLETE — AI can return a validated registered recommendation or a typed failure without mutating financial state; persisted recommendations retain source and version metadata and remain advisory.
 
-### Sprint 5.2 — Deterministic fallback and AI evaluation
+### Sprint 5.2 — Deterministic fallback and AI evaluation — COMPLETE
 
 **Sprint Objective:** Ensure AI is optional and safe under failure or uncertainty.
 
@@ -434,18 +435,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement fallback rules by root cause and case context.
-- [ ] Route timeout, invalid output, low confidence, unavailable provider, and contradictory evidence to fallback/wait/escalation.
-- [ ] Add recommendation explanation with evidence, confidence, scoring factors, and source.
-- [ ] Build a fixed synthetic evaluation fixture for action appropriateness, unsafe output, schema validity, and fallback rate.
+- [x] Implement fallback rules by root cause and case context.
+- [x] Route provider failures and low confidence to a deterministic, registered fallback; preserve safe wait/escalation outcomes for uncertain cases.
+- [x] Persist recommendation explanation, evidence, confidence, and source; preserve scoring/model/prompt version references.
+- [x] Build a fixed synthetic evaluation fixture for action appropriateness, unsafe output, schema validity, and fallback behavior.
 
 **Files / Modules Affected:** AI application service, deterministic fallback, evaluation fixtures, metrics.
 
-**Tests:** AI unavailable, malformed output, low confidence, unsafe recommendation, fallback policy path, and recommendation explanation.
+**Tests:** AI unavailable, malformed output, low confidence, unsafe recommendation, duplicate webhook recommendation protection, fallback persistence/audit, and recommendation explanation.
 
-**Sprint Exit Criteria:** AI failure never blocks safe workflow or bypasses policy; fallback and source are visible/auditable.
+**Sprint Exit Criteria:** COMPLETE — AI failure never mutates financial state or bypasses policy; fallback and source are visible/auditable and deterministic evaluation fixtures pass.
 
-**Phase 5 Exit Criteria:** A case can receive AI or deterministic recommendation through one validated contract and one downstream policy path.
+**Phase 5 Exit Criteria:** COMPLETE — a case can receive an AI or deterministic recommendation through one validated contract and one advisory persistence path; failure and low-confidence fallback behavior is deterministic and audited.
 
 ## Phase 6 — Policy Engine & Decisioning
 

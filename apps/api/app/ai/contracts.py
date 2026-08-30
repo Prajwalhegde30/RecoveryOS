@@ -42,6 +42,7 @@ class RecommendationEvidence(BaseModel):
     failure_code: str | None = Field(default=None, max_length=128)
     attempt_count: int = Field(ge=0)
     incident_active: bool = False
+    evidence_conflict: bool = False
     scoring_version: str = Field(min_length=1, max_length=64)
 
 

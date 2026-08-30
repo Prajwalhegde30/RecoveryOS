@@ -84,7 +84,7 @@ The Phase 0 development baseline requires:
 - optional provider credentials only when a real/test adapter is enabled;
 - optional AI provider credentials only when an AI adapter is enabled.
 
-The current repository provides package manifests, a lockfile, runtime scripts, an environment template, and quality tooling. Docker/Compose, database migrations, and product workflow commands remain planned.
+The current repository provides package manifests, a lockfile, runtime scripts, an environment template, quality tooling, SQLAlchemy persistence metadata, an Alembic baseline migration, and a Docker Compose PostgreSQL service. Product workflow commands remain planned.
 
 ## Installation and environment configuration
 
@@ -126,15 +126,14 @@ These are variable categories, not currently implemented configuration names. Th
 
 ## Database and migrations
 
-The approved proposed database is PostgreSQL with SQLAlchemy persistence and Alembic migrations. The migration workflow will be:
+The approved proposed database is PostgreSQL with SQLAlchemy persistence and Alembic migrations. The current local migration workflow is:
 
-1. Start the local PostgreSQL runtime.
-2. Validate environment configuration.
-3. Apply versioned migrations explicitly.
-4. Run deterministic seed/simulator commands where required.
-5. Run tests against an isolated test database.
+1. Start PostgreSQL with `docker compose up -d postgres`.
+2. Copy `.env.example` to `.env` and configure `DATABASE_URL` if the local connection differs.
+3. Apply the baseline with `pnpm db:upgrade`.
+4. Run tests against an isolated test database.
 
-The current repository has no migration files or database runtime. Application startup must not silently mutate schemas. See [DATA_MODEL.md](./DATA_MODEL.md), [schema.md](./schema.md), and [data_API.md](./data_API.md).
+Application startup must not silently mutate schemas. Repository operations and product workflow migrations remain planned. See [DATA_MODEL.md](./DATA_MODEL.md), [schema.md](./schema.md), and [data_API.md](./data_API.md).
 
 ## Running the system
 
@@ -148,7 +147,7 @@ pnpm test            Run the current workspace tests
 pnpm build           Build the current workspace artifacts
 ```
 
-Worker, simulator, migrations, and product workflow commands will be added only when their implementation phases begin.
+Worker, simulator, and product workflow commands will be added only when their implementation phases begin. The database migration command is available now.
 
 ## Testing
 
@@ -197,4 +196,4 @@ The following are planned troubleshooting categories; exact commands will be add
 
 ## Status and next step
 
-The next implementation step is Phase 0 repository bootstrap. Before code is written, the architecture and decisions must be reviewed for the exact package/runtime versions and local commands. Supabase setup is intentionally not documented because the approved architecture selects PostgreSQL directly, not Supabase.
+The next implementation step is Phase 1 repository and unit-of-work work after the schema baseline. Supabase setup is intentionally not documented because the approved architecture selects PostgreSQL directly, not Supabase.

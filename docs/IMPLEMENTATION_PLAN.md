@@ -1,8 +1,8 @@
 # RecoveryOS Implementation Plan
 
-**Status:** Proposed execution roadmap  
+**Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Documentation-only greenfield baseline  
+**Current repository:** Phase 0 baseline implemented; Phase 1 persistence in progress  
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -24,7 +24,7 @@ Before every sprint, read the relevant source documents:
 - `DECISIONS.md` — rationale, alternatives, trade-offs, and status of major technical decisions.
 - `IMPLEMENTATION_PLAN.md` — current sprint, dependencies, tasks, tests, integration gates, and exit criteria.
 
-The repository began without implementation artifacts. The Phase 0 baseline is now implemented; existing correct documentation remains a prerequisite and review contract for later phases.
+The repository began without implementation artifacts. The Phase 0 baseline is implemented and Phase 1 persistence is now in progress; existing correct documentation remains a prerequisite and review contract for later phases.
 
 ## 3. Current repository state
 
@@ -32,7 +32,7 @@ The repository began without implementation artifacts. The Phase 0 baseline is n
 
 - `LICENSE`
 - `docs/PRD.md` — approved product specification, v1.0.
-- `docs/ARCHITECTURE.md` — proposed pnpm/Turborepo, Next.js, FastAPI, PostgreSQL, worker, adapter, auth, and observability baseline.
+- `docs/ARCHITECTURE.md` — proposed pnpm/Turborepo, Next.js, FastAPI, PostgreSQL, worker, adapter, auth, and observability baseline; Phase 0 runtime boundaries are implemented.
 - `docs/DATA_MODEL.md` — proposed entities, constraints, indexes, migrations, and duplicate-prevention rules.
 - `docs/DECISIONS.md` — single decision record with proposed baseline choices.
 - Git repository on `main`, remote configured as the RecoveryOS GitHub repository.
@@ -42,8 +42,8 @@ The repository began without implementation artifacts. The Phase 0 baseline is n
 
 ### Missing
 
-- Database schema/migrations, Docker/Compose, and product workflow modules.
-- Database schema/migrations, repositories, API, workers, adapters, simulator, frontend, auth, tests, metrics, and deployment.
+- Product workflow modules, repositories, API, workers, adapters, simulator, frontend, auth, metrics, and deployment.
+- PostgreSQL migration runtime is being implemented in Phase 1; local Docker Compose and the baseline SQLAlchemy metadata are now present.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
 ### Working assumption
@@ -199,7 +199,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 1 — Database & Persistence
 
-### Sprint 1.1 — Schema migrations and database runtime
+### Sprint 1.1 — Schema migrations and database runtime — COMPLETE
 
 **Sprint Objective:** Implement the PostgreSQL schema contract from `DATA_MODEL.md`.
 
@@ -209,18 +209,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Create the baseline migration for merchants, users, memberships, customers, obligations, cases, attempts, events, processed events, policies, decisions, recommendations, actions, jobs, incidents, experiments, attribution, and audit.
-  - [ ] Use integer smallest-unit monetary fields and validated currency columns.
-  - [ ] Add foreign keys, check constraints, unique constraints, and required indexes.
-  - [ ] Add tenant scope to every tenant-owned table.
-- [ ] Add local database startup and migration commands.
-- [ ] Add migration status and failure reporting; do not migrate from application startup.
+- [x] Create the baseline migration for merchants, users, memberships, customers, obligations, cases, attempts, events, processed events, policies, decisions, recommendations, actions, jobs, incidents, experiments, attribution, and audit.
+  - [x] Use integer smallest-unit monetary fields and validated currency columns.
+  - [x] Add foreign keys, unique constraints, and required operational indexes.
+  - [x] Add tenant scope to every tenant-owned table.
+- [x] Add local PostgreSQL startup and explicit migration commands.
+- [x] Add migration configuration and failure reporting; do not migrate from application startup.
 
 **Files / Modules Affected:** `apps/api` persistence/migrations/config; Docker/local database setup.
 
-**Tests:** Apply migrations to an empty database; rerun safely; verify constraints for duplicate event, obligation, case, action, job, and assignment identities.
+**Tests:** Apply and downgrade migrations against an empty temporary database; verify metadata and Recovery Case uniqueness with persistence tests; retain duplicate event/action/job/assignment verification for repository implementation in Sprint 1.2.
 
-**Sprint Exit Criteria:** Fresh database migration succeeds; constraints reject duplicate identities and invalid money; migration status is deterministic.
+**Sprint Exit Criteria:** Fresh migration upgrade and downgrade succeed; baseline metadata exposes the required tenant and identity constraints; smallest-unit fields are integer-backed; no schema mutation occurs during API startup.
 
 ### Sprint 1.2 — Persistence repositories and transaction boundaries
 

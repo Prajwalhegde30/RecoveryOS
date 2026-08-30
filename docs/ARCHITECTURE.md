@@ -6,7 +6,7 @@
 **Decision record:** [DECISIONS.md](./DECISIONS.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)
 
-**Implementation status:** The repository baseline now contains the approved workspace/app/package boundaries, quality scripts, minimal web shell, API health surface, and smoke checks. RecoveryOS domain modules, persistence, workers, integrations, authentication, and dashboard workflows remain planned for later phases.
+**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migration, local PostgreSQL Compose service, and persistence constraint tests are implemented. RecoveryOS domain workflows, repositories, workers, integrations, authentication, and dashboard workflows remain planned for later phases.
 
 ## 1. Purpose and architectural goals
 

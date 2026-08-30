@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     web_origin: str = "http://localhost:3000"
     log_level: str = "INFO"
+    database_url: str = "postgresql+psycopg://recoveryos:recoveryos@localhost:5432/recoveryos"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

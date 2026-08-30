@@ -7,6 +7,8 @@
     "lint": "node ../../scripts/run-python.mjs -m ruff check app tests",
     "test": "node ../../scripts/run-python.mjs -m pytest",
     "typecheck": "node ../../scripts/run-python.mjs -m mypy app",
-    "build": "node ../../scripts/run-python.mjs -m compileall -q app"
+    "build": "node ../../scripts/run-python.mjs -m compileall -q app",
+    "db:upgrade": "node ../../scripts/run-python.mjs -m alembic upgrade head",
+    "db:downgrade": "node ../../scripts/run-python.mjs -m alembic downgrade base"
   }
 }

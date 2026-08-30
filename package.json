@@ -11,6 +11,7 @@
     "dev": "turbo run dev --parallel",
     "dev:api": "pnpm --filter @recoveryos/api dev",
     "dev:web": "pnpm --filter @recoveryos/web dev",
+    "db:upgrade": "pnpm --filter @recoveryos/api db:upgrade",
     "e2e:smoke": "node scripts/smoke-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check \"*.{json,yaml,yml}\" \"apps/web/**/*.{ts,tsx,mjs}\" \"packages/**/*.{ts,tsx,css}\" \"scripts/**/*.mjs\"",

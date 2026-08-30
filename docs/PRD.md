@@ -3,7 +3,7 @@
 **Product:** RecoveryOS — AI Revenue Recovery Decision & Orchestration Engine  
 **Track:** Razorpay Buildathon, Track 3 — AI Revenue Recovery  
 **Status:** Product Approved — Architecture Pending  
-**Version:** 1.0  
+**Version:** 1.1
 **Date:** 2026-08-30
 
 ## 1. Executive summary
@@ -701,13 +701,13 @@ After the MVP, RecoveryOS can add real provider adapters, merchant-configurable 
 ## 31. Glossary
 
 - **Revenue at Risk:** money associated with an event that may remain uncollected.
-- **Recovery Case:** unified workflow object representing one revenue-risk situation.
+- **Recovery Case:** unified workflow object representing exactly one recoverable business obligation, regardless of how many events, payment attempts, or recovery actions are associated with it.
 - **Expected Recoverable Revenue:** amount at risk multiplied by recovery probability.
 - **Recovery Probability:** estimated likelihood of successful recovery under the available evidence and strategy.
 - **Next-Best Action:** approved registered intervention selected for a case.
 - **Policy Engine:** deterministic authority that allows, blocks, schedules, suppresses, or escalates actions.
-- **Natural Recovery:** payment recovered without an eligible treatment intervention.
-- **Assisted Recovery:** payment recovered after a qualifying intervention.
+- **Natural Recovery:** verified payment recovery without an eligible treatment intervention.
+- **Assisted Recovery:** verified payment recovery after a qualifying treatment intervention, without double-counting the same obligation as natural recovery.
 - **Incident:** correlated systemic degradation affecting payment outcomes.
 - **Idempotency:** safe handling of duplicate events or retries without duplicate financial effects.
 - **Treatment / Control:** intervention group and comparison group used to estimate recovery lift.
@@ -1562,7 +1562,7 @@ Configuration has four categories:
 3. **Feature flags:** controlled enablement of simulator behavior, channels, experiments, incident suppression, tracing, and staged capabilities.
 4. **Experiment overrides:** explicitly scoped and time-bound variations that cannot override safety or financial invariants.
 
-Safe defaults may exist for structural behavior and local development, but every mutable business value must have a typed source and effective-value display/audit path. Configuration precedence remains environment → merchant policy → approved experiment override → per-case computed context, subject to safety guardrails. Secrets are never database defaults or source-code values. Startup validation must reject malformed mandatory configuration.
+Structural defaults may exist for non-business schema behavior and local development, but they are not a business-policy override layer. Every mutable business value must have a typed source and effective-value display/audit path. Business configuration precedence remains environment → merchant policy → approved experiment override → per-case computed context, subject to safety guardrails. Secrets are never database defaults or source-code values. Startup validation must reject malformed mandatory configuration.
 
 Policy and configuration changes MUST be versioned. A policy version is captured on each policy decision, scheduled job, action, and relevant audit event so an operator can reconstruct exactly which rules were applied.
 
@@ -1603,7 +1603,7 @@ Tracing is `Stretch`; structured correlation IDs and reliable audit events are M
 ## 69. Expanded glossary additions
 
 - **Business obligation:** The single payable order, checkout intent, billing cycle, or invoice that can be recovered.
-- **Attempt:** A payment or recovery intervention recorded against a case; not a duplicate webhook or AI proposal.
+- **Attempt:** A single payment attempt or action-execution attempt recorded against a case; it is distinct from an external event, a recovery action, and an AI proposal.
 - **Policy version:** Immutable identifier of the merchant/environment rules used for a decision.
 - **Correlation ID:** Identifier connecting one request/event/workflow across logs, jobs, provider calls, and audit records.
 - **Liveness:** Whether a process is running; it does not imply dependencies are usable.
@@ -1627,7 +1627,210 @@ The PRD revision must be considered consistent only if:
 - no fixed demo output is used in place of simulator-derived results;
 - operational, security, reliability, and failure states are visible and auditable.
 
+## 71. Implementation-critical semantic clarifications
+
+This section removes implementation ambiguity without changing RecoveryOS product scope, Recovery Case semantics, the existing state machine, the scoring model, the policy model, or the first vertical slice. It is a clarification of ownership and invariants, not a new architecture.
+
+### 71.1 Canonical domain vocabulary
+
+These terms MUST NOT be used interchangeably:
+
+| Term | Exact meaning | Does it create financial truth? |
+|---|---|---:|
+| External event | One provider/simulator delivery identified by provider event identity and event type | No |
+| Business obligation | One payable order, checkout intent, subscription billing cycle, or invoice | It is the unit of revenue risk |
+| Payment attempt | One provider payment attempt associated with an obligation/case | No, until authoritative success reconciliation |
+| Recovery Case | One workflow representing one recoverable business obligation | No by itself |
+| Recommendation | An AI/rule proposal for a registered action | No |
+| Recovery action | One intended/executed customer-facing, payment-link, retry, human, or stop operation | No, even if sent successfully |
+| Action execution attempt | One provider invocation/retry for an existing recovery action | No new action or revenue |
+| Scheduled job | Durable instruction to evaluate/execute an existing action later | No |
+| Incident | Correlated operational degradation context | Never |
+| Verified payment success | Authoritative provider/simulator confirmation bound to an obligation/payment identity | Yes, once |
+| Attribution record | Case-level classification of natural/assisted/control/treatment outcome | Reports the verified result; does not create it |
+
+One external `payment.failed` event normally records one payment attempt and may create or associate one case. A later `payment.succeeded` event reconciles the same obligation/attempt or a new attempt against the existing case. A worker retry is not a new recovery action. A recommendation is not an action until policy permits and the action is reserved.
+
+### 71.2 Identity and uniqueness contract
+
+The following identity layers are independent and all are required:
+
+| Layer | Identity rule | Duplicate behavior |
+|---|---|---|
+| External event | Merchant + provider + provider event ID; documented composite fallback only when provider ID is unavailable | Safe no-op after prior result |
+| Business obligation | Merchant + source type + stable external obligation identity | Resolve existing obligation |
+| Recovery Case | Exactly one case per obligation ID | Associate attempt/event to existing case |
+| Payment/provider identity | Merchant + provider + external payment ID | Reuse existing attempt/status |
+| Recovery action | Merchant + action idempotency key for the intended effect | Return existing action/result |
+| Scheduled job | Merchant + job idempotency key for the scheduled action | Return existing job or prior outcome |
+| Success/recovery | Obligation + verified provider payment identity | No second amount increment |
+| Attribution | Experiment + case assignment and one case-level outcome | Reuse prior assignment/outcome |
+
+Application pre-checks are performance aids only; database uniqueness/transactional conflict handling is authoritative. Retries and replays MUST preserve the original identity. No duplicate webhook may create a second case, payment-link creation, message, action, attribution, or recovered amount.
+
+### 71.3 Ownership of state and effects
+
+- The domain state-transition service owns legal Recovery Case transitions and terminal-state guards.
+- The application service owns orchestration, transaction boundaries, and calls to repositories/interfaces.
+- The policy evaluator owns only the deterministic policy result; it does not execute actions or invent state transitions.
+- The scheduler owns durable job creation/cancellation/claiming; it does not decide whether an action is permitted.
+- The worker owns job execution coordination and last-mile rechecks; it must call the application/action service rather than mutating case state directly.
+- The payment adapter owns provider communication and authoritative status retrieval; it does not decide attribution or policy.
+- The audit service records the operation; it does not make an operation valid.
+- Terminal states `RECOVERED`, `OPTED_OUT`, `CANCELLED`, and `EXHAUSTED` reject customer-facing actions. `SUPPRESSED`/`WAITING` may resume only through a fresh policy evaluation.
+
+Payment success is a high-priority reconciliation trigger from any still-open case state. Reconciliation, cancellation, and audit must be atomic at the application/database boundary where possible.
+
+### 71.4 Scheduled-job and restart contract
+
+Every scheduled job MUST:
+
+- reference one case and, where applicable, one recovery action;
+- have a stable merchant-scoped idempotency key;
+- persist due time, status, attempt count, lease/ownership data, retry metadata, policy version, and correlation ID;
+- be claimable transactionally by one worker lease;
+- be cancelled idempotently when payment succeeds, opt-out occurs, the case becomes terminal, or policy/incident requires suppression;
+- re-check payment/order status, case state, opt-out, incident, current policy, channel availability, and action idempotency immediately before an external effect;
+- avoid execution when cancellation or a terminal guard is observed;
+- classify repeated failure into the configured terminal/dead-letter path.
+
+After process restart, the worker MUST recover expired leases and reconstruct/requeue eligible due work from durable database state. An in-memory timer is never sufficient. A policy change MUST NOT silently rewrite the policy version captured for a previously scheduled action; the worker must either evaluate the configured revalidation rule explicitly or preserve the recorded decision and create a new audited decision.
+
+Dead-letter handling remains `Stretch` for MVP as defined elsewhere. Even before a dedicated DLQ exists, repeatedly failing work must have an explicit failure status, bounded retry path, operator visibility, and safe replay/reconciliation behavior.
+
+### 71.5 Configuration merge and safety contract
+
+The effective case context is merged in this order:
+
+```text
+validated environment configuration
+  -> merchant policy/version
+  -> explicitly approved experiment override
+  -> per-case computed context
+```
+
+The merge is deterministic and the effective policy/configuration references are persisted with recommendations, policy decisions, jobs, actions, and relevant audit records. Missing or malformed mandatory configuration fails startup or activation safely; it must not silently become zero, unlimited, or a guessed value.
+
+AI output is never a configuration layer. AI cannot override safety guardrails, terminal-state rules, opt-out, tenant authorization, payment truth, registered-action allow-lists, or mandatory policy precedence. Mutable thresholds, windows, costs, channels, timeouts, ratios, URLs, provider settings, and model settings remain typed configuration/persisted policy/environment values, not source-code constants.
+
+### 71.6 Financial correctness contract
+
+- Amounts are integer smallest currency units with validated currency.
+- Provider-confirmed server-side status is authoritative; browser state and client claims are not.
+- Sending an action, delivering a message, creating a link, receiving a click, or generating a recommendation never increments recovered revenue.
+- Duplicate success events are reconciliation no-ops after the first verified success.
+- A successful alternate payment attempt may recover the existing obligation/case; it does not create a second recovery total.
+- Natural and assisted recovery are mutually exclusive case-level outcomes for a qualifying attribution window.
+- Refunds/reversals are subsequent explicit financial adjustments where supported; they do not erase original success history.
+- Dashboard/reporting totals are derived from persisted reconciled cases/attribution/adjustments and are not calculated as authoritative values in frontend code.
+
+### 71.7 AI contract boundary
+
+AI may interpret structured evidence, select a registered action, explain the recommendation, and provide confidence. AI MUST NOT calculate authoritative totals, determine provider payment truth, decide legal/policy permission, modify policy, change amount/recipient/tenant scope, bypass approval/opt-out/quiet hours/contact limits, or directly execute an action.
+
+Every response is schema-validated, range-checked, allow-listed, versioned, and persisted with prompt/model/schema references where available. Invalid, timed-out, unavailable, low-confidence, contradictory, or unsafe responses use deterministic fallback, safe wait/suppression, or human escalation. Synthetic scoring/AI behavior is labeled as Buildathon behavior and is never presented as production accuracy.
+
+### 71.8 Tenant and authorization contract
+
+The API/application boundary must derive tenant scope from validated authentication/membership context. Every tenant-scoped query, mutation, job claim, metric, provider context, audit read, simulator operation, and customer lookup must use that scope. A client-provided `merchant_id` is not sufficient authority.
+
+Viewer/Operator/Admin permissions are enforced server-side. Frontend visibility is presentation only. Cross-tenant access through manipulated IDs, filters, pagination, action requests, or job references must return a safe denial/not-found result without leaking another tenant's existence. Sensitive operations—manual retry, intervention, approval, policy/integration changes, simulator execution, and customer-context access—are audited.
+
+### 71.9 Failure and degraded-state contract
+
+For every important failure, the system must expose a safe human-readable state, retryability, operator next step, and case/action consequence:
+
+| Condition | Safe state | Retryable? | Operator next step | Case/action consequence |
+|---|---|---:|---|---|
+| Invalid webhook signature | Webhook rejected | No until configuration/event changes | Verify provider secret and event source | No domain mutation |
+| Malformed event | Event validation failed | Only if corrected/replayed | Inspect schema/provider payload | No case/amount |
+| AI unavailable/invalid | AI fallback active | Yes, bounded | Inspect provider health; review fallback/approval queue | Fallback/wait/escalate |
+| Payment verification unavailable | Payment status unavailable | Yes | Restore provider/health and retry reconciliation | No customer-facing action |
+| Provider action failure | Action failed/retrying | Per error class | Inspect provider status and retry count | Retry/backoff/fallback/DLQ |
+| Worker unhealthy/stale | Worker degraded | Yes after recovery | Restore worker and inspect leases/backlog | Jobs remain durable |
+| Database unavailable | Persistence degraded | Yes | Restore database/readiness and reconcile | No claimed financial success |
+| Policy conflict/block | Action blocked by policy | Only through a new valid decision | Review policy/version/approval | No forbidden effect |
+| Customer opt-out | Outreach stopped | No customer contact | Review opt-out/audit | Future contact cancelled |
+| Active incident | Outreach suppressed/delayed | After resolution/cooldown | Monitor incident health | Cases wait/suppress |
+| Stale recommendation/job | Action stale/cancelled | Only after re-analysis/policy | Re-analyze current context | No stale effect |
+
+Error payloads and UI states must never expose secrets, credentials, sensitive provider payloads, raw stack traces, or unnecessary PII.
+
+### 71.10 Observability correlation contract
+
+Every workflow receives or propagates a correlation/request/workflow identifier. The minimum reconstructable chain is:
+
+```text
+external event
+  -> normalized event/idempotency result
+  -> obligation/case
+  -> diagnosis/score/recommendation
+  -> policy evaluation
+  -> scheduled job
+  -> action/provider attempt
+  -> payment result/reconciliation
+  -> attribution
+```
+
+Structured logs, audit events, metrics, and job/provider records must include the relevant correlation ID and entity IDs. Distributed tracing remains `Stretch`; correlation IDs, structured logs, audit, health, and metrics are MVP requirements.
+
+### 71.11 Simulator determinism contract
+
+The simulator MUST accept a configured seed and generate events/outcomes through the same ingestion, case, scoring, AI/fallback, policy, scheduler, worker, provider-adapter, reconciliation, and attribution paths used by normal flows. It MUST exercise duplicate events, concurrent/duplicate effects where testable, opt-outs, incidents, natural recovery, assisted recovery, provider/message failures, worker retry/restart, approvals, and unrecovered cases.
+
+Dashboard totals MUST be calculated from persisted execution results. A seed may make the input reproducible, but no fixed output total, hardcoded recovery amount, or predetermined UI success state is permitted. Synthetic data, simulated messaging, simulated degradation, and Razorpay Test Mode must be visibly labeled.
+
+### 71.12 High-risk acceptance scenarios
+
+The following scenarios are mandatory behavioral acceptance tests in addition to the existing PRD acceptance criteria:
+
+1. Duplicate webhook and duplicate normalized event produce one domain effect.
+2. Concurrent case creation produces one obligation and one Recovery Case.
+3. Duplicate payment/provider identity reuses one attempt/status.
+4. Duplicate scheduled job/action request produces one job/action.
+5. Payment succeeds before outreach; worker cancels without sending.
+6. Payment succeeds while worker/provider execution is in flight; reconciliation prevents duplicate financial/outbound effect.
+7. AI provider fails or returns malformed output; deterministic fallback proceeds through policy.
+8. AI recommendation conflicts with policy; action is blocked/audited.
+9. Customer opts out; all applicable future outreach is cancelled.
+10. Incident threshold opens; affected cases/jobs suppress or delay outreach and resume after cooldown.
+11. Worker restarts with an expired lease; work is safely reclaimed or reconciled.
+12. Provider/message failure retries with bounds and reaches explicit failure/dead-letter status when exhausted.
+13. Duplicate success cannot increase recovered totals or change attribution.
+14. Refund/reversal creates a subsequent adjustment without deleting original success.
+15. Unauthorized and cross-tenant API manipulation is denied without data leakage.
+16. Dashboard totals reconcile to persisted cases, verified payments, actions, and attribution—not frontend counters.
+
+## 72. Remaining OPEN decisions and implementation handoff notes
+
+The following remain intentionally unresolved and belong in architecture/security/deployment review rather than hidden PRD assumptions:
+
+- exact framework/package versions and final workspace package names;
+- exact local/demo/production-like authentication provider and key-rotation mechanism;
+- exact provider retry semantics and Razorpay Test Mode adapter coverage;
+- exact merchant timezone default and environment-specific performance target measurements;
+- exact policy/scoring/incident/attribution configuration values;
+- exact audit, event, PII, and processed-event retention periods;
+- exact database isolation/locking settings and deployment topology;
+- exact backup/RPO/RTO and hosting choices;
+- exact external AI provider/model and availability of a configured credential;
+- whether Stretch DLQ/tracing capabilities are included before the demo.
+
+These OPEN items must be resolved in the appropriate existing decision/architecture/data/security document before implementation depends on them. They must not be silently converted into source-code constants or product requirements.
+
 ## Changelog
+
+### v1.1
+
+- implementation-critical domain vocabulary and ownership clarified;
+- idempotency layers and retry/replay behavior made explicit;
+- financial reconciliation and dashboard-source rules strengthened;
+- scheduled-job restart, cancellation, and policy-version behavior clarified;
+- configuration merge and AI/policy boundaries made deterministic;
+- tenant authorization and degraded-state contracts expanded;
+- observability correlation and simulator invariants made explicit;
+- high-risk acceptance scenarios consolidated;
+- remaining OPEN decisions documented without inventing values.
 
 ### v1.0
 

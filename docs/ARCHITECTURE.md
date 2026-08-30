@@ -6,7 +6,7 @@
 **Decision record:** [DECISIONS.md](./DECISIONS.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)
 
-**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, safe replay handling, source-aware obligation identity, one-case-per-obligation association, PRD-aligned audited state transitions, deterministic root-cause diagnosis, configurable integer-safe case scoring, provider-neutral schema-validated AI recommendations, deterministic fallback orchestration, and fallback audit provenance are implemented. Repositories for remaining workflow operations, workers, integrations, authentication, policy, and dashboard workflows remain planned for later phases.
+**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, safe replay handling, source-aware obligation identity, one-case-per-obligation association, PRD-aligned audited state transitions, deterministic root-cause diagnosis, configurable integer-safe case scoring, provider-neutral schema-validated AI recommendations, deterministic fallback orchestration, fallback audit provenance, and typed versioned merchant-policy lifecycle are implemented. Policy evaluation, repositories for remaining workflow operations, workers, integrations, authentication, and dashboard workflows remain planned for later phases.
 
 ## 1. Purpose and architectural goals
 

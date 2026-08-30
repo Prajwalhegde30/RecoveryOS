@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 5 implemented; Phase 6 policy engine work is next
+**Current repository:** Phase 6.1 implemented; Phase 6.2 policy evaluation work is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -44,10 +44,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - PRD-aligned Recovery Case state machine with transactional audited transitions and terminal-state protection.
 - Provider-neutral, schema-validated AI recommendation contract with a minimized evidence boundary, typed provider failures, configured version capture, and advisory recommendation persistence.
 - Deterministic root-cause fallback recommendations, fallback audit provenance, duplicate-event recommendation protection, and fixed synthetic fallback evaluation fixtures.
+- Typed tenant-scoped merchant policy documents with immutable version creation, activation, active-policy lookup, and policy activation audit records.
 
 ### Missing
 
-- Policy versioning/evaluation, repositories for remaining workflow entities, workers, payment/messaging adapters, simulator, frontend, auth, metrics, and deployment.
+- Deterministic policy evaluation, approval/stop orchestration, repositories for remaining workflow entities, workers, payment/messaging adapters, simulator, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -450,7 +451,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 6 — Policy Engine & Decisioning
 
-### Sprint 6.1 — Policy schema, versions, and configuration
+### Sprint 6.1 — Policy schema, versions, and configuration — COMPLETE
 
 **Sprint Objective:** Make all mutable recovery rules typed, versioned, and tenant-aware.
 
@@ -460,16 +461,16 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Define typed merchant policy schema for attempts, intervals, quiet hours, approval threshold, contact caps, sequence duration, channels, retries, suppression, and fallback.
-- [ ] Implement startup/environment validation and merchant-policy validation.
-- [ ] Implement policy version creation, activation, immutable history, and effective-value inspection.
-- [ ] Prevent invalid policy changes from becoming active.
+- [x] Define typed merchant policy schema for attempts, intervals, quiet hours, approval threshold, contact caps, sequence duration, channels, retries, suppression, and fallback.
+- [x] Implement typed merchant-policy validation, including timezone, range, enum, and unknown-field validation.
+- [x] Implement policy version creation, activation, immutable history, and effective-value inspection.
+- [x] Prevent invalid policy changes from becoming active.
 
 **Files / Modules Affected:** Policy schema/service, configuration, repositories, admin application boundary.
 
-**Tests:** Valid/invalid values, timezone, probability/amount/duration validation, version activation, historical lookup, and tenant scope.
+**Tests:** Valid/invalid values, timezone, amount/duration/range validation, version activation, historical lookup, superseded-version protection, and tenant scope.
 
-**Sprint Exit Criteria:** Every mutable policy value has a typed source; active and historical policy versions are reconstructable.
+**Sprint Exit Criteria:** COMPLETE — every implemented merchant policy value has a typed source; active and historical policy versions are tenant-scoped and reconstructable.
 
 ### Sprint 6.2 — Policy evaluation, approvals, and stopping rules
 

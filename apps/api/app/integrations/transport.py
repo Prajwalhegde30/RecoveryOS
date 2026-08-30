@@ -50,6 +50,8 @@ class TransportPaymentProvider(PaymentProvider):
     def get_payment_status(
         self, merchant_id: str, external_payment_id: str
     ) -> PaymentStatusSnapshot:
+        if not merchant_id or not external_payment_id:
+            raise ValueError("merchant_id and external_payment_id are required")
         raw = self._call(
             self.status_transport,
             {"merchant_id": merchant_id, "payment_id": external_payment_id},

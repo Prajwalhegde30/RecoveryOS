@@ -46,6 +46,8 @@ class PaymentStatusSnapshot:
             raise ValueError("external_payment_id is required")
         if self.amount_minor_units is not None and self.amount_minor_units < 0:
             raise ValueError("amount_minor_units must be non-negative")
+        if (self.amount_minor_units is None) != (self.currency is None):
+            raise ValueError("amount_minor_units and currency must be provided together")
         if self.currency is not None and len(self.currency) != 3:
             raise ValueError("currency must be an ISO-like three-letter code")
 

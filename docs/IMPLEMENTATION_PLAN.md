@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 8.1 implemented; Phase 8.2 seeded simulator is next
+**Current repository:** Phase 8 complete; Phase 9 payment reconciliation and race safety are next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -48,10 +48,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
 - Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, terminal failure handling, and a provider-independent worker core with two-stage preflight and graceful shutdown.
 - SDK-neutral payment and messaging adapter contracts, typed provider failures/health, deterministic simulated payment/messaging providers, registered-action provider routing, and configurable AI adapter composition.
+- Seeded simulator event runner with configured inputs, reproducible event identities, duplicate/opt-out/incident/natural/assisted/high-value/provider-failure scenario controls, normal ingestion/case/scoring/fallback execution, synthetic labeling, and database-derived counts.
 
 ### Missing
 
-- Seeded simulator, authoritative reconciliation, incidents, attribution, frontend, auth, metrics, and deployment. External SDK/credential composition remains deployment-specific; the worker runtime now has payment/messaging adapter seams.
+- Authoritative reconciliation, incidents, attribution, frontend, auth, metrics, and deployment. External SDK/credential composition remains deployment-specific; the simulator currently generates and persists success/failure scenario events, while financial recovery effects remain Phase 9 responsibility.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -568,7 +569,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** COMPLETE — every currently implemented external effect is adapter-mediated, typed, observable, and safely simulated in tests; provider-specific SDK wiring remains an explicit composition boundary.
 
-### Sprint 8.2 — Seeded simulator and scenario controls
+### Sprint 8.2 — Seeded simulator and scenario controls — COMPLETE
 
 **Sprint Objective:** Generate reproducible demo events whose outcomes come from actual workflow execution.
 
@@ -578,18 +579,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement configurable seed, merchant count, transaction volume, payment mix, failure distributions, duplicates, opt-outs, high-value cases, natural/treatment recoveries, and provider failures.
-- [ ] Implement explicit incident period and recovery period controls.
-- [ ] Run events through ingestion rather than directly writing final dashboard totals.
-- [ ] Label all synthetic/simulated output in API and UI data.
+- [x] Implement configurable seed, merchant count, transaction volume, payment mix, failure distributions, duplicates, opt-outs, high-value cases, natural/assisted recovery events, and provider-failure scenario controls; experiment treatment remains optional Stretch.
+- [x] Implement explicit incident and recovery scenario controls as persisted synthetic events, without claiming financial recovery before Phase 9 reconciliation.
+- [x] Run event inputs through the normal ingestion and, for recoverable failures, case/scoring/fallback paths rather than directly writing dashboard totals.
+- [x] Label simulator output and derive reported event/case/recommendation counts from persisted records.
 
 **Files / Modules Affected:** Simulator module, scripts, fixtures, config, provider fakes.
 
-**Tests:** Same seed produces same input sequence; output totals derive from persisted events/cases/actions; duplicate and failure scenarios are included.
+**Tests:** Same seed produces the same event identities and inputs; reruns create no duplicate domain facts; reported counts derive from persisted events/cases/recommendations; duplicate, opt-out, incident, recovery, high-value, and provider-failure scenarios are included.
 
-**Sprint Exit Criteria:** A seeded batch can exercise the workflow end-to-end without hardcoded totals or fake success counters.
+**Sprint Exit Criteria:** COMPLETE — a seeded batch exercises the implemented ingestion-to-analysis workflow without hardcoded totals or fake success counters, and exposes explicit hooks/events for later worker, reconciliation, incident, and attribution execution.
 
-**Phase 8 Exit Criteria:** Real/test/simulated provider paths share contracts and a reproducible simulator produces labeled workflow data.
+**Phase 8 Exit Criteria:** COMPLETE — real/test/simulated provider paths share typed contracts, and a reproducible simulator produces labeled persisted workflow data. Authoritative payment reconciliation remains the next phase and is not replaced by simulator counters.
 
 ## Phase 9 — Payment Reconciliation & Race Conditions
 

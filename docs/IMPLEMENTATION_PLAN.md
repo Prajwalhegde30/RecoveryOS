@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 7.1 implemented; Phase 7.2 worker execution is next
+**Current repository:** Phase 7 complete; Phase 8 provider adapters and simulator are next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -32,7 +32,7 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 
 - `LICENSE`
 - `docs/PRD.md` — approved product specification, v1.0.
-- `docs/ARCHITECTURE.md` — proposed pnpm/Turborepo, Next.js, FastAPI, PostgreSQL, worker, adapter, auth, and observability baseline; Phase 0 runtime boundaries are implemented.
+- `docs/ARCHITECTURE.md` — proposed pnpm/Turborepo, Next.js, FastAPI, PostgreSQL, worker, adapter, auth, and observability baseline; implemented runtime boundaries now include durable jobs and the restart-safe worker core.
 - `docs/DATA_MODEL.md` — proposed entities, constraints, indexes, migrations, and duplicate-prevention rules.
 - `docs/DECISIONS.md` — single decision record with proposed baseline choices.
 - Git repository on `main`, remote configured as the RecoveryOS GitHub repository.
@@ -46,11 +46,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Deterministic root-cause fallback recommendations, fallback audit provenance, duplicate-event recommendation protection, and fixed synthetic fallback evaluation fixtures.
 - Typed tenant-scoped merchant policy documents with immutable version creation, activation, active-policy lookup, and policy activation audit records.
 - Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
-- Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, and terminal failure handling.
+- Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, terminal failure handling, and a provider-independent worker core with two-stage preflight and graceful shutdown.
 
 ### Missing
 
-- Worker execution/preflight, provider adapters, simulator, reconciliation, incidents, attribution, frontend, auth, metrics, and deployment.
+- Provider adapters, simulator, reconciliation, incidents, attribution, frontend, auth, metrics, and deployment. The worker runtime currently exposes provider/preflight seams; concrete payment and messaging adapters remain Phase 8 work.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -520,7 +520,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** COMPLETE — jobs are durably persisted, uniquely identifiable, claimable once per lease, cancellable, recoverable after lease expiry, and tied to the authorizing policy decision/version; terminal failure is explicit without requiring a dedicated DLQ.
 
-### Sprint 7.2 — Worker execution and startup reconciliation
+### Sprint 7.2 — Worker execution and startup reconciliation — COMPLETE
 
 **Sprint Objective:** Execute due jobs with last-mile safety checks and restart recovery.
 
@@ -530,18 +530,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement worker loop with bounded polling, claim lease, timeout, and graceful shutdown.
-- [ ] Re-check payment, case, opt-out, incident, policy, action idempotency, and stale recommendation immediately before execution.
-- [ ] Execute through application service/provider adapter, record result, and schedule bounded retry.
-- [ ] Reconcile expired leases and eligible open cases on startup.
+- [x] Implement a provider-independent worker loop with bounded polling, claim leases, graceful shutdown, and startup lease reconciliation.
+- [x] Define two-stage preflight seams so payment, case, opt-out, incident, policy, action idempotency, and stale-recommendation checks occur immediately before execution when supplied by the application boundary; concrete provider/reconciliation checks continue in Phases 8–10.
+- [x] Execute only through an injected application/provider adapter, record safe results, and schedule bounded retry or terminal `FAILED` state.
+- [x] Requeue an action left `EXECUTING` after an expired worker lease using the original action identity so adapter reconciliation/retry remains idempotent.
 
 **Files / Modules Affected:** Worker runtime, job handlers, application recheck service, observability.
 
-**Tests:** Worker restart, expired lease, stale job, payment race, policy change, opt-out, provider retry, duplicate worker execution, graceful shutdown.
+**Tests:** Worker restart, expired lease including a reserved action, stale job, payment race and other preflight blocks through deterministic fakes, provider retry, terminal provider failure, duplicate worker execution, unexpected worker failure redaction, and graceful shutdown.
 
-**Sprint Exit Criteria:** A due action is executed at most once per idempotency key and is cancelled when a preflight guard fails.
+**Sprint Exit Criteria:** COMPLETE — a due action is claimed with a lease, checked before and immediately before execution, executed only through the injected executor, retried with bounded safe failure handling, and requeued safely after lease expiry. A preflight guard cancels work without invoking the executor.
 
-**Phase 7 Exit Criteria:** Durable scheduling and worker execution survive restarts, retries, cancellation, stale state, and duplicate delivery.
+**Phase 7 Exit Criteria:** COMPLETE — durable scheduling and the worker core survive restarts, retries, cancellation, stale state, lease expiry after action reservation, and duplicate delivery. Concrete payment/messaging execution and authoritative reconciliation remain explicit prerequisites for later phases.
 
 ## Phase 8 — Provider Integrations & Simulator
 
@@ -1138,7 +1138,7 @@ The largest technical risks on this path are obligation uniqueness under concurr
 | AI hallucination | Unsafe/invalid action | Allow-list, schema validation, policy authority, fallback | Malformed/unsafe AI contract tests |
 | AI outage/drift | Workflow blocked or inconsistent | Versioned prompts/models, deterministic fallback, evaluation set | Outage/fallback/regression tests |
 | Policy bypass | Unauthorized contact/action | One policy service and server-side checks | Conflict, role, terminal, opt-out tests |
-| Worker loss/stale lease | Missed or repeated recovery | Durable jobs, leases, startup reconciliation, DLQ | Restart/lease/replay tests |
+| Worker loss/stale lease | Missed or repeated recovery | Durable jobs, leases, startup reconciliation, terminal failure; dedicated DLQ remains Stretch | Restart/lease/replay tests |
 | Incident misclassification | Message flood or lost opportunity | Configurable thresholds, confidence, cooldown | Detector boundary/flapping tests |
 | Tenant isolation failure | Data/privacy breach | Scope every query/mutation/job/audit | Cross-tenant negative tests |
 | Webhook spoof/replay | Unauthorized domain mutation | Signature and replay checks | Invalid signature/replay tests |
@@ -1169,7 +1169,7 @@ Each item maps to PRD requirements and must have an implementation/test path bef
 - [ ] Explain recommendation evidence, confidence, scoring factors, and policy result.
 - [ ] Enforce policy precedence, contact limits, intervals, quiet hours, channels, incidents, opt-out, approval, and stopping rules.
 - [ ] Persist policy versions and decisions.
-- [ ] Schedule durable work with retries, leases, cancellation, DLQ status, and replay.
+- [ ] Schedule durable work with retries, leases, cancellation, terminal failure, and replay-safe identity; dedicated DLQ infrastructure remains Stretch.
 - [ ] Re-check payment/order/case/policy/opt-out/incident state immediately before action.
 - [ ] Execute provider actions idempotently.
 - [ ] Reconcile payment success and cancel future work.
@@ -1178,7 +1178,7 @@ Each item maps to PRD requirements and must have an implementation/test path bef
 - [ ] Show dashboard, case detail, incident, policies, measurement, and system health.
 - [ ] Show loading, empty, degraded, stale, unavailable, and error states.
 - [ ] Record audit timeline and structured operational telemetry.
-- [ ] Classify natural, assisted, suppressed, control, treatment, and unrecovered outcomes.
+- [ ] Classify natural, assisted, suppressed, and unrecovered outcomes for MVP; demonstrate control/treatment only if the optional Stretch experiment path is implemented.
 - [ ] Demonstrate failure, race, fallback, and restart scenarios.
 
 ## 13. Final demo checklist
@@ -1199,7 +1199,7 @@ Each item maps to PRD requirements and must have an implementation/test path bef
 - [ ] Show payment race: payment succeeds before scheduled outreach, action cancels, no message sends.
 - [ ] Show action execution followed by success reconciliation.
 - [ ] Show audit timeline and policy/model/scoring versions.
-- [ ] Show natural versus assisted recovery and attribution limitations.
+- [ ] Show natural versus assisted recovery and attribution limitations; show control/treatment only when the optional Stretch experiment path is enabled.
 - [ ] Show dashboard metrics derived from persisted workflow outcomes.
 - [ ] Re-run the seed and confirm reproducible relationships/totals.
 - [ ] Confirm no secrets, raw card data, unnecessary PII, or proprietary Razorpay claims are exposed.
@@ -1236,7 +1236,7 @@ If an implementation conflict appears:
 
 Before implementation starts, confirm:
 
-- [ ] The plan reflects the actual repository: documentation-only, no source/stack/database/tests/CI/deployment yet.
+- [ ] The plan reflects the actual repository state, including implemented workspace, persistence, ingestion, case, scoring, AI, policy, durable jobs, and worker-core boundaries.
 - [ ] No future implementation task incorrectly claims existing code is complete.
 - [ ] PRD remains the product source of truth.
 - [ ] Architecture, data model, and decisions remain separate responsibilities.

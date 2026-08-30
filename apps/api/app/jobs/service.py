@@ -241,6 +241,7 @@ class JobService:
         now: datetime,
         error_category: str,
         error_safe: str,
+        retryable: bool = True,
         correlation_id: str = "job-retry",
     ) -> ScheduledJob:
         if not error_category or not error_safe:
@@ -254,7 +255,7 @@ class JobService:
             job.last_error_safe = error_safe[:512]
             job.lease_until = None
             action = self._action(job.recovery_action_id)
-            if job.attempt_count >= job.max_attempts:
+            if not retryable or job.attempt_count >= job.max_attempts:
                 job.status = JobStatus.FAILED
                 if action is not None:
                     action.status = "FAILED"
@@ -307,6 +308,16 @@ class JobService:
                 job.status = JobStatus.PENDING
                 job.lease_until = None
                 job.due_at = now_naive
+                action_requeued = False
+                action = self._action(job.recovery_action_id)
+                if action is not None and action.status == "EXECUTING":
+                    # The worker may have stopped after an external call began but
+                    # before its result was persisted. Requeue the same action
+                    # identity so the adapter can reconcile/retry idempotently.
+                    action.status = "SCHEDULED"
+                    action.failure_category = "worker_lease_expired"
+                    action.failure_detail_safe = "worker lease expired before result persistence"
+                    action_requeued = True
                 self.session.add(
                     AuditEvent(
                         merchant_id=self.merchant_id,
@@ -315,13 +326,22 @@ class JobService:
                         event_type="JOB_LEASE_RECOVERED",
                         actor_type=ActorType.WORKER,
                         reason="expired worker lease returned job to pending",
-                        metadata_safe_json={},
+                        metadata_safe_json={"action_requeued": action_requeued},
                         correlation_id=correlation_id,
                     )
                 )
             return len(jobs)
 
-    def complete(self, job_id: str, *, correlation_id: str = "job-complete") -> ScheduledJob:
+    def complete(
+        self,
+        job_id: str,
+        *,
+        provider_reference: str | None = None,
+        cost_minor_units: int = 0,
+        correlation_id: str = "job-complete",
+    ) -> ScheduledJob:
+        if cost_minor_units < 0:
+            raise ValueError("cost_minor_units must be non-negative")
         with self.session.begin():
             job = self._job(job_id, for_update=True)
             if job.status == JobStatus.COMPLETED:
@@ -333,6 +353,8 @@ class JobService:
             action = self._action(job.recovery_action_id)
             if action is not None:
                 action.status = "SUCCEEDED"
+                action.provider_reference = provider_reference
+                action.cost_minor_units = cost_minor_units
                 action.executed_at = _utc_naive(datetime.now(UTC))
             self.session.add(
                 AuditEvent(

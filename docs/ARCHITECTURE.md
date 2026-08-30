@@ -1,12 +1,12 @@
 # RecoveryOS Architecture
 
-**Status:** Proposed baseline — Phase 0 repository scaffold implemented; architecture review pending
+**Status:** Proposed baseline — implementation through Phase 7 worker core; architecture review pending
 **Owner:** RecoveryOS engineering  
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Decision record:** [DECISIONS.md](./DECISIONS.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)
 
-**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, safe replay handling, source-aware obligation identity, one-case-per-obligation association, PRD-aligned audited state transitions, deterministic root-cause diagnosis, configurable integer-safe case scoring, provider-neutral schema-validated AI recommendations, deterministic fallback orchestration, fallback audit provenance, typed versioned merchant-policy lifecycle, deterministic policy precedence evaluation, and audited approval resolution are implemented. Durable jobs, provider execution, reconciliation, incidents, authentication, and dashboard workflows remain planned for later phases.
+**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, safe replay handling, source-aware obligation identity, one-case-per-obligation association, PRD-aligned audited state transitions, deterministic root-cause diagnosis, configurable integer-safe case scoring, provider-neutral schema-validated AI recommendations, deterministic fallback orchestration, fallback audit provenance, typed versioned merchant-policy lifecycle, deterministic policy precedence evaluation, audited approval resolution, durable jobs, policy-trace persistence, and a provider-independent restart-safe worker core are implemented. Concrete provider execution, authoritative reconciliation, incidents, authentication, and dashboard workflows remain planned for later phases.
 
 ## 1. Purpose and architectural goals
 
@@ -229,7 +229,7 @@ The following interfaces are required at the application boundary:
 - `PaymentProvider`: verify payment/order status, create permitted payment links/retry paths, reconcile events.
 - `MessagingProvider`: send an approved channel message with an idempotency key and return delivery status.
 - `AIProvider`: return a structured recommendation or typed failure.
-- `JobScheduler`: schedule, cancel, claim, retry, and dead-letter durable work.
+- `JobScheduler`: schedule, cancel, claim, retry, and terminally fail durable work; dedicated dead-letter workflow is an optional Stretch capability.
 - `Clock`: provide injectable time for deterministic tests and race scenarios.
 
 Initial implementations are Razorpay-style/test-mode, simulated messaging, deterministic simulator, configured AI provider, and PostgreSQL scheduler. Each implementation exposes health and failure state without changing domain contracts.
@@ -265,7 +265,7 @@ Local development uses Docker Compose for PostgreSQL and the documented pnpm/Tur
 
 Use structured logs with `merchant_id`, `case_id`, `event_id`, `payment_id`, `action_id`, `job_id`, `incident_id`, and `correlation_id`. Expose liveness/readiness checks for API, database, worker, provider configuration, and migration state. Track webhook, case, policy, job, provider, AI, incident, and recovery metrics described in the PRD.
 
-Failure behavior is fail-closed for payment truth and customer contact. Invalid signatures do not mutate state; stale jobs are cancelled after recheck; AI errors use deterministic fallback; provider failures use bounded retry/backoff; database outages do not claim success; repeated failures go to dead-letter state; startup reconciliation repairs expired leases and unresolved work.
+Failure behavior is fail-closed for payment truth and customer contact. Invalid signatures do not mutate state; stale jobs are cancelled after recheck; AI errors use deterministic fallback; provider failures use bounded retry/backoff; database outages do not claim success; repeated failures enter the MVP terminal `FAILED` state, while a dedicated dead-letter workflow remains Stretch; startup reconciliation repairs expired leases and requeues an action left `EXECUTING` before its result was persisted using the original idempotency identity.
 
 ## 16. Security and maintainability controls
 

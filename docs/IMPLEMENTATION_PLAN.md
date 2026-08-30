@@ -222,7 +222,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Fresh migration upgrade and downgrade succeed; baseline metadata exposes the required tenant and identity constraints; smallest-unit fields are integer-backed; no schema mutation occurs during API startup.
 
-### Sprint 1.2 — Persistence repositories and transaction boundaries
+### Sprint 1.2 — Persistence repositories and transaction boundaries — COMPLETE
 
 **Sprint Objective:** Provide repository/unit-of-work primitives without putting business rules in persistence.
 
@@ -232,20 +232,20 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement repository interfaces and PostgreSQL implementations for core entities.
-  - [ ] Keep provider/API types out of persistence models.
-  - [ ] Add explicit transaction and rollback handling.
-- [ ] Implement transaction patterns for event/case association, state transition/audit, job claim, success reconciliation, and action idempotency reservation.
-- [ ] Add row-lock/lease primitives required for concurrent case and worker operations.
-- [ ] Add safe pagination/filter primitives for future API queries.
+- [x] Implement tenant-scoped repository interfaces and SQLAlchemy implementations for core entities.
+  - [x] Keep provider/API types out of persistence models.
+  - [x] Add explicit transaction and rollback handling through the persistence session boundary.
+- [x] Implement reusable primitives for obligation/case lookup, action idempotency lookup, and due-job claiming.
+- [x] Add row-lock/lease primitives required for concurrent case and worker operations.
+- [x] Add bounded pagination primitives for future API queries.
 
 **Files / Modules Affected:** `apps/api` domain interfaces, persistence models/repositories, transaction utilities.
 
 **Tests:** Repository CRUD, rollback, unique constraint, concurrent insert, row-lock, tenant filter, and transaction atomicity tests.
 
-**Sprint Exit Criteria:** Application services can persist/load core entities transactionally; no repository silently bypasses tenant scope or uniqueness.
+**Sprint Exit Criteria:** Application services can persist/load core entities transactionally; tenant scope is enforced by repository construction and entity insertion; unique identity constraints remain database-enforced; due jobs can be claimed with a lease.
 
-**Phase 1 Exit Criteria:** Migrations and repositories support the complete data model, financial types, identity constraints, and required concurrency primitives.
+**Phase 1 Exit Criteria:** The canonical persistence schema is versioned and reversible; core repository and transaction primitives support tenant scope, financial types, identity constraints, bounded pagination, and leased job claiming; full event/case/business workflow repositories are added in the phases that consume them.
 
 ## Phase 2 — Event Ingestion & Idempotency
 

@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db_session
+from app.cases.service import RecoveryCaseService
 from app.config import get_settings
 from app.events.contracts import EventIngestionResult, RevenueEvent
 from app.events.security import verify_signature
@@ -44,4 +45,6 @@ async def receive_webhook(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid event payload"
         )
-    return EventIngestionService(session, provider).ingest(event)
+    result = EventIngestionService(session, provider).ingest(event)
+    RecoveryCaseService(session, provider, settings.max_recovery_attempts).associate(event)
+    return result

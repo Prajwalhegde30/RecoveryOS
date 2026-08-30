@@ -57,11 +57,14 @@ class EventIngestionService:
             )
             if existing is None:
                 raise
+            existing_correlation_id = existing.correlation_id
+            existing_result = existing.result
+            self.session.rollback()
             return EventIngestionResult(
                 event_id=event.event_id,
-                status=existing.result,
+                status=existing_result,
                 duplicate=True,
-                correlation_id=existing.correlation_id,
+                correlation_id=existing_correlation_id,
             )
         return EventIngestionResult(
             event_id=event.event_id,

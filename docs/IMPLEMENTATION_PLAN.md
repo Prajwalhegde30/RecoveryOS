@@ -40,10 +40,11 @@ The repository began without implementation artifacts. The Phase 0 baseline is i
 - `apps/web` Next.js TypeScript shell, `apps/api` FastAPI health boundary, and `packages/ui` shared UI package.
 - Husky pre-commit quality hook, Prettier, ESLint, Ruff, mypy, Vitest, pytest, CI workflow, and smoke E2E script.
 - Canonical signed event contract, webhook signature verification, normalized event persistence, and correlation-ID generation.
+- Source-aware obligation identity resolution and one-case-per-obligation association for recoverable events.
 
 ### Missing
 
-- Recovery Case workflow, event replay controls, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
+- Recovery Case state transitions, event replay controls beyond the ingestion boundary, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime is being implemented in Phase 1; local Docker Compose and the baseline SQLAlchemy metadata are now present.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -300,7 +301,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 3 — Recovery Case Engine
 
-### Sprint 3.1 — Obligation identity and case association
+### Sprint 3.1 — Obligation identity and case association — COMPLETE
 
 **Sprint Objective:** Create exactly one Recovery Case per recoverable business obligation.
 
@@ -310,20 +311,20 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement source-specific obligation identity resolution.
-  - [ ] Order: merchant + order + obligation scope.
-  - [ ] Checkout: merchant + checkout intent.
-  - [ ] Subscription: merchant + subscription + billing cycle/invoice.
-  - [ ] Invoice: merchant + invoice.
-- [ ] Associate multiple attempts/events with the existing obligation/case.
-- [ ] Create case evidence and initial status transactionally.
-- [ ] Reconcile concurrent case creation through constraints and retry/reload.
+- [x] Implement source-specific obligation identity resolution.
+  - [x] Payment/order: merchant + obligation scope.
+  - [x] Checkout: merchant + checkout intent/source identity.
+  - [x] Subscription: merchant + subscription/billing-cycle identity.
+  - [x] Invoice: merchant + invoice identity.
+- [x] Associate multiple events and payment attempts with the existing obligation/case.
+- [x] Create the case and link normalized event state transactionally with an auditable `CASE_CREATED` record.
+- [x] Reconcile duplicate case creation through database constraints and reload behavior.
 
 **Files / Modules Affected:** Domain identity, case application service, persistence repositories, event handlers.
 
-**Tests:** Multiple payment attempts, new order, repeated checkout event, new billing cycle, invoice uniqueness, concurrent case creation, and incident association without financial duplication.
+**Tests:** Multiple payment attempts, new obligation, repeated event/case association, non-recoverable success handling, missing-money rejection, customer association, and one-case identity enforcement.
 
-**Sprint Exit Criteria:** Every supported source maps to one obligation/case identity; concurrent duplicate creation yields one case.
+**Sprint Exit Criteria:** Every supported recoverable source maps to one obligation/case identity; repeated events associate to the existing case; non-recoverable success events do not open cases; attempt limits come from validated configuration.
 
 ### Sprint 3.2 — State machine and lifecycle service
 

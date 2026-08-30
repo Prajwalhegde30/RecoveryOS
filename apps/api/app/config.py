@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +12,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     database_url: str = "postgresql+psycopg://recoveryos:recoveryos@localhost:5432/recoveryos"
     webhook_secret: str | None = None
+    max_recovery_attempts: int = Field(default=3, gt=0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

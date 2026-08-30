@@ -15,7 +15,7 @@ from app.events.security import verify_signature
 from app.events.service import EventIngestionService
 from app.main import app
 from app.persistence.base import Base
-from app.persistence.models import ProcessedEvent
+from app.persistence.models import ProcessedEvent, RecoveryCase
 from app.persistence.models import RevenueEvent as RevenueEventRecord
 
 
@@ -134,8 +134,17 @@ def test_webhook_accepts_signed_event_with_injected_session() -> None:
             content=raw,
             headers={"X-Webhook-Signature": f"sha256={digest}"},
         )
+        duplicate = TestClient(app).post(
+            "/webhooks/simulator",
+            content=raw,
+            headers={"X-Webhook-Signature": f"sha256={digest}"},
+        )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
     assert response.json()["duplicate"] is False
+    assert duplicate.status_code == 200
+    assert duplicate.json()["duplicate"] is True
+    with Session(engine) as session:
+        assert len(session.scalars(select(RecoveryCase)).all()) == 1

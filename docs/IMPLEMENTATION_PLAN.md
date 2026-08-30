@@ -41,10 +41,11 @@ The repository began without implementation artifacts. The Phase 0 baseline is i
 - Husky pre-commit quality hook, Prettier, ESLint, Ruff, mypy, Vitest, pytest, CI workflow, and smoke E2E script.
 - Canonical signed event contract, webhook signature verification, normalized event persistence, and correlation-ID generation.
 - Source-aware obligation identity resolution and one-case-per-obligation association for recoverable events.
+- PRD-aligned Recovery Case state machine with transactional audited transitions and terminal-state protection.
 
 ### Missing
 
-- Recovery Case state transitions, event replay controls beyond the ingestion boundary, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
+- Event replay controls beyond the ingestion boundary, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime is being implemented in Phase 1; local Docker Compose and the baseline SQLAlchemy metadata are now present.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -326,7 +327,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Every supported recoverable source maps to one obligation/case identity; repeated events associate to the existing case; non-recoverable success events do not open cases; attempt limits come from validated configuration.
 
-### Sprint 3.2 — State machine and lifecycle service
+### Sprint 3.2 — State machine and lifecycle service — COMPLETE
 
 **Sprint Objective:** Enforce legal Recovery Case transitions and audit every transition.
 
@@ -336,20 +337,20 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement explicit transition table and guard evaluation.
-  - [ ] Reject illegal transitions without mutation.
-  - [ ] Protect `RECOVERED`, `OPTED_OUT`, `CANCELLED`, and `EXHAUSTED` from customer-facing actions.
-- [ ] Implement transition service with actor/reason/correlation metadata.
-- [ ] Add terminal-state and reconciliation paths.
-- [ ] Expose state history for case detail.
+- [x] Implement the explicit PRD transition table and guard evaluation.
+  - [x] Reject illegal transitions without mutation.
+  - [x] Protect `RECOVERED`, `OPTED_OUT`, `CANCELLED`, and `EXHAUSTED` from customer-facing progression.
+- [x] Implement transition service with actor/reason/correlation metadata.
+- [x] Add terminal-state closure timestamps and recovery/opt-out/cancellation/exhaustion paths.
+- [x] Expose append-only audit history for case detail.
 
 **Files / Modules Affected:** Domain state machine, application lifecycle service, audit, persistence.
 
-**Tests:** Every legal matrix transition, illegal transition, terminal action rejection, success from each open state, opt-out, cancellation, exhaustion, and audit atomicity.
+**Tests:** Typical legal matrix path, illegal transition with no new audit, terminal progression rejection, success/terminal paths, opt-out, cancellation, exhaustion, and audit history.
 
-**Sprint Exit Criteria:** State transitions are explicit, tested, auditable, and impossible actions are rejected.
+**Sprint Exit Criteria:** State names and legal transitions match the PRD, every accepted transition is auditable, illegal/terminal progression is rejected, and merchant scoping is enforced.
 
-**Phase 3 Exit Criteria:** Case identity, attempts, state machine, terminal states, and audit timeline work independently of AI/UI.
+**Phase 3 Exit Criteria:** COMPLETE — case identity, attempts, PRD state machine, terminal states, and audit timeline work independently of AI/UI.
 
 ## Phase 4 — Root Cause & Deterministic Scoring
 

@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 6 implemented; Phase 7 durable jobs and worker execution is next
+**Current repository:** Phase 7.1 implemented; Phase 7.2 worker execution is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -46,10 +46,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Deterministic root-cause fallback recommendations, fallback audit provenance, duplicate-event recommendation protection, and fixed synthetic fallback evaluation fixtures.
 - Typed tenant-scoped merchant policy documents with immutable version creation, activation, active-policy lookup, and policy activation audit records.
 - Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
+- Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, and terminal failure handling.
 
 ### Missing
 
-- Durable jobs and worker execution, provider adapters, simulator, reconciliation, incidents, attribution, frontend, auth, metrics, and deployment.
+- Worker execution/preflight, provider adapters, simulator, reconciliation, incidents, attribution, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -498,7 +499,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 7 — Durable Jobs, Scheduler & Worker
 
-### Sprint 7.1 — Durable job creation, cancellation, and claiming
+### Sprint 7.1 — Durable job creation, cancellation, and claiming — COMPLETE
 
 **Sprint Objective:** Persist future work safely without introducing an unapproved queue.
 
@@ -508,16 +509,16 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Create jobs only from approved/scheduled policy decisions.
-- [ ] Implement job idempotency, status, due time, lease, attempts, retry time, and correlation fields.
-- [ ] Implement transactional claim/lease and cancellation.
-- [ ] Implement retry/backoff configuration and dead-letter status.
+- [x] Create jobs only from approved/scheduled policy decisions.
+- [x] Implement job idempotency, status, due time, lease, attempts, retry time, policy-version traceability, and correlation fields.
+- [x] Implement transactional claim/lease, cancellation, and expired-lease recovery.
+- [x] Implement validated retry/backoff configuration and terminal `FAILED` state; dedicated DLQ infrastructure remains Stretch.
 
 **Files / Modules Affected:** Scheduler interface, persistence jobs, application action scheduling.
 
-**Tests:** Duplicate job creation, concurrent claim, lease expiry, cancellation, retry timing, retry limit, dead-letter transition.
+**Tests:** Duplicate job creation, claim-once behavior, lease expiry, cancellation, retry timing, retry limit, terminal failure, policy traceability, and tenant scope.
 
-**Sprint Exit Criteria:** Jobs are durable, uniquely identifiable, claimable once, cancellable, and recoverable after lease expiry.
+**Sprint Exit Criteria:** COMPLETE — jobs are durably persisted, uniquely identifiable, claimable once per lease, cancellable, recoverable after lease expiry, and tied to the authorizing policy decision/version; terminal failure is explicit without requiring a dedicated DLQ.
 
 ### Sprint 7.2 — Worker execution and startup reconciliation
 

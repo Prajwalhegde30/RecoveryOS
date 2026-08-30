@@ -110,13 +110,13 @@ Decisions are append-only. A later re-evaluation creates a new decision rather t
 
 ### recovery_actions
 
-Fields: `id` PK, `merchant_id` FK, `recovery_case_id` FK, optional `recommendation_id`, `action_type`, `channel`, `status`, `idempotency_key` unique within merchant, `attempt_number`, `provider_reference`, `cost_minor_units`, `requested_at`, `executed_at`, `cancelled_at`, `failure_category`, `failure_detail_safe`, `correlation_id`.
+Fields: `id` PK, `merchant_id` FK, `recovery_case_id` FK, optional `recommendation_id`, optional `policy_version_id` FK, `action_type`, `channel`, `status`, `idempotency_key` unique within merchant, `attempt_number`, `provider_reference`, `cost_minor_units`, `requested_at`, `executed_at`, `cancelled_at`, `failure_category`, `failure_detail_safe`, `correlation_id`.
 
 The idempotency key prevents duplicate outbound effects. Action status is distinct from case status.
 
 ### scheduled_jobs
 
-Fields: `id` PK, `merchant_id` FK, optional `recovery_case_id` FK, optional `recovery_action_id` FK, `job_type`, `status`, `due_at`, `attempt_count`, `max_attempts`, `lease_until`, `next_retry_at`, `idempotency_key` unique within merchant, `last_error_category`, `last_error_safe`, `created_at`, `updated_at`, `correlation_id`.
+Fields: `id` PK, `merchant_id` FK, optional `recovery_case_id` FK, optional `recovery_action_id` FK, optional `policy_decision_id` FK, optional `policy_version_id` FK, `job_type`, `status`, `due_at`, `attempt_count`, `max_attempts`, `lease_until`, `next_retry_at`, `idempotency_key` unique within merchant, `last_error_category`, `last_error_safe`, `created_at`, `updated_at`, `correlation_id`.
 
 Jobs are durable, claimable, cancellable, and replayable only through idempotent application paths. Expired leases are recoverable after worker restart.
 

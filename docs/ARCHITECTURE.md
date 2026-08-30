@@ -214,7 +214,7 @@ The MVP uses PostgreSQL-backed jobs instead of introducing Redis or a hosted que
 
 Required job fields include job identity, case/action identity, type, due time, status, attempt count, lease expiry, next retry time, idempotency key, last error category, and correlation ID. Startup reconciliation finds expired leases and reconstructs eligible jobs from open case state.
 
-After the configured retry limit, a job enters a dead-letter status for operator review/replay. Replay preserves the original identity and passes through all rechecks.
+After the configured retry limit, a job enters the terminal `FAILED` state for operator review or an explicit recovery path. Bounded retry and replay safety are MVP requirements; a dedicated dead-letter queue/workflow is Stretch and must not block MVP. Any later replay preserves the original identity and passes through all rechecks.
 
 ## 10. AI provider architecture
 

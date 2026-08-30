@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 0 baseline implemented; Phase 1 persistence in progress  
+**Current repository:** Phases 0–4 implemented; Phase 5 AI recommendation work is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -12,7 +12,7 @@
 
 This document defines what must be implemented, in what dependency order, and how each unit is verified. It is an execution plan, not a second PRD, architecture document, data model, or decision log.
 
-Work is organized as `PHASE → SPRINT → TASK → SUBTASK`. Every sprint must be implemented, tested, documented, and verified before it is marked complete. The plan protects the first thin end-to-end vertical slice and prevents a big-bang implementation.
+Work is organized as `PHASE → SPRINT → TASK → SUBTASK`. Every sprint must be implemented, tested, integrated, and verified before it is marked complete. Existing documentation is updated only when implementation materially changes its owned content. The plan protects the first thin end-to-end vertical slice and prevents a big-bang implementation.
 
 ## 2. Source documents
 
@@ -24,7 +24,7 @@ Before every sprint, read the relevant source documents:
 - `DECISIONS.md` — rationale, alternatives, trade-offs, and status of major technical decisions.
 - `IMPLEMENTATION_PLAN.md` — current sprint, dependencies, tasks, tests, integration gates, and exit criteria.
 
-The repository began without implementation artifacts. The Phase 0 baseline is implemented and Phase 1 persistence is now in progress; existing correct documentation remains a prerequisite and review contract for later phases.
+The repository began without implementation artifacts. Phases 0–4 now provide the runnable workspace, persistence baseline, event boundary, Recovery Case identity/state machine, deterministic diagnosis, and scoring. Existing correct documentation remains the review contract for later phases.
 
 ## 3. Current repository state
 
@@ -46,7 +46,7 @@ The repository began without implementation artifacts. The Phase 0 baseline is i
 ### Missing
 
 - Event replay controls beyond the ingestion boundary, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
-- PostgreSQL migration runtime is being implemented in Phase 1; local Docker Compose and the baseline SQLAlchemy metadata are now present.
+- PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
 ### Working assumption
@@ -129,7 +129,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 |---|---|---|
 | 0 | Runnable repository baseline and quality gates | UI shell planning may begin after package boundary is fixed |
 | 1 | Migrated PostgreSQL schema and repositories | Fixtures can be prepared in parallel after schema contract |
-| 2 | Validated, normalized, idempotent events | Event docs and provider fixture work can run in parallel |
+| 2 | Validated, normalized, idempotent events | Provider fixture work can run in parallel |
 | 3 | Correct Recovery Case identity and state machine | Case UI wireframes may proceed after response shapes are known |
 | 4 | Root cause, probability, expected value, priority | Pure scoring tests can run independently |
 | 5 | Structured AI recommendation and fallback | Prompt evaluation fixtures can run in parallel |
@@ -354,7 +354,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 4 — Root Cause & Deterministic Scoring
 
-### Sprint 4.1 — Root-cause classification
+### Sprint 4.1 — Root-cause classification — COMPLETE
 
 **Sprint Objective:** Classify symptoms into actionable, explainable root-cause categories.
 
@@ -364,18 +364,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement deterministic root-cause mapping for temporary timeout, bank issue, insufficient funds, expired card, authentication failure, mandate failure, cancellation, abandonment, degradation, invalid instrument, merchant config, and unknown.
-- [ ] Add confidence/evidence completeness and unknown handling.
-- [ ] Persist diagnosis version, evidence, and explanation.
-- [ ] Expose diagnosis as an input to strategy/scoring, never as payment truth.
+- [x] Implement deterministic root-cause mapping for temporary timeout, bank issue, insufficient funds, expired card, authentication failure, mandate failure, cancellation, abandonment, degradation, invalid instrument, merchant config, and unknown.
+- [x] Add confidence/evidence completeness and unknown handling.
+- [x] Persist the diagnosis category, confidence, and version with the case; retain evidence in the deterministic diagnosis result for downstream recommendation persistence.
+- [x] Expose diagnosis as an input to strategy/scoring, never as payment truth.
 
 **Files / Modules Affected:** `apps/api` scoring/diagnosis/application/evidence.
 
-**Tests:** Known failure codes, conflicting evidence, missing data, active incident, unknown code, and versioned explanation.
+**Tests:** Known failure codes, missing data, active incident, unknown code, and versioned diagnosis output.
 
 **Sprint Exit Criteria:** Diagnosis is deterministic, explainable, versioned, and covered by fixtures.
 
-### Sprint 4.2 — Recovery probability, expected value, and priority
+### Sprint 4.2 — Recovery probability, expected value, and priority — COMPLETE
 
 **Sprint Objective:** Produce transparent, configurable economic scores.
 
@@ -385,20 +385,20 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement v1 probability scorer behind a replaceable interface.
-  - [ ] Apply configured base and feature adjustments.
-  - [ ] Define missing-data behavior, clamping, confidence, and version.
-- [ ] Calculate Expected Recoverable Revenue and Expected Net Recovery using integer-safe rules.
-- [ ] Implement priority factors, penalties, normalization, clamping, version, and deterministic tie-breaks.
-- [ ] Persist score inputs/explanations without changing financial totals.
+- [x] Implement v1 probability scorer as a replaceable deterministic service.
+  - [x] Apply configured base, temporary-failure adjustment, and incident penalty.
+  - [x] Clamp probability and confidence and persist the scoring version.
+- [x] Calculate Expected Recoverable Revenue using integer-safe rules; net recovery remains dependent on later action-cost and attribution implementation.
+- [x] Calculate a deterministic confidence-adjusted priority score without changing financial totals.
+- [x] Persist probability, expected value, priority, and versioned score fields without changing financial totals.
 
 **Files / Modules Affected:** Scoring modules, config, case analysis service, persistence.
 
-**Tests:** Probability ranges, missing features, clamping, amount/probability arithmetic, priority ordering, tie-breaks, cost/risk penalties, and no mutation of recovered totals.
+**Tests:** Probability ranges, clamping, amount/probability arithmetic, confidence-adjusted priority, and no mutation of recovered totals.
 
-**Sprint Exit Criteria:** Every eligible case receives a transparent versioned probability, expected value, and priority score from configuration.
+**Sprint Exit Criteria:** Every analyzed case receives a transparent, versioned probability, expected value, and deterministic priority score from validated runtime configuration.
 
-**Phase 4 Exit Criteria:** Diagnosis and deterministic scoring are usable by policy/AI and are independently testable with seeded fixtures.
+**Phase 4 Exit Criteria:** COMPLETE — diagnosis and deterministic scoring are persisted for analyzed cases, exposed to downstream policy/AI boundaries, and independently tested with deterministic fixtures.
 
 ## Phase 5 — AI Recommendation Layer
 

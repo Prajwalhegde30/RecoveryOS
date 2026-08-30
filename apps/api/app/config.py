@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://recoveryos:recoveryos@localhost:5432/recoveryos"
     webhook_secret: str | None = None
     max_recovery_attempts: int = Field(default=3, gt=0)
+    scoring_base_probability_percent: int = Field(default=50, ge=0, le=100)
+    scoring_timeout_adjustment_percent: int = Field(default=10, ge=-100, le=100)
+    scoring_incident_penalty_percent: int = Field(default=20, ge=-100, le=100)
+    scoring_confidence_weight_percent: int = Field(default=50, ge=0, le=100)
+    scoring_version: str = "scoring-v1"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

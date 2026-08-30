@@ -27,6 +27,8 @@ def event(event_id: str = "evt_1") -> RevenueEvent:
         source_object_id="order_1",
         external_obligation_id="order_1",
         obligation_type="payment",
+        payment_method="upi",
+        failure_code="UPI_TIMEOUT",
         amount_minor_units=249900,
         currency="inr",
         occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -147,4 +149,7 @@ def test_webhook_accepts_signed_event_with_injected_session() -> None:
     assert duplicate.status_code == 200
     assert duplicate.json()["duplicate"] is True
     with Session(engine) as session:
-        assert len(session.scalars(select(RecoveryCase)).all()) == 1
+        cases = session.scalars(select(RecoveryCase)).all()
+        assert len(cases) == 1
+        assert cases[0].root_cause == "temporary_payment_failure"
+        assert cases[0].expected_recoverable_amount is not None

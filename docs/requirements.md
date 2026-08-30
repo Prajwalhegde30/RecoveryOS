@@ -82,7 +82,7 @@ Priority values: `MUST` is required for MVP correctness; `SHOULD` is expected un
 | REQ-POLICY-005 | Opt-out MUST stop applicable future customer contact. | MUST | Consent/safety | Customer state/jobs | Opt-out E2E | 6,7,9 |
 | REQ-POLICY-006 | High-value or configured cases MUST require authorized human approval. | MUST | Bounded autonomy | RBAC | Approval tests | 6,14 |
 | REQ-ACTION-001 | Actions MUST use provider adapters and action idempotency keys. | MUST | External-effect safety | Adapter/job | Duplicate action test | 7,8 |
-| REQ-ACTION-002 | Provider failure MUST classify retryable/terminal and use bounded retry/backoff/fallback/DLQ. | MUST | Resilience | Worker | Failure injection | 7,16 |
+| REQ-ACTION-002 | Provider failure MUST be classified as retryable or terminal and handled with bounded retry/backoff and a safe fallback. Repeated failure MUST reach an explicit terminal failure state; a dedicated DLQ is optional Stretch infrastructure. | MUST | Resilience | Worker | Failure injection | 7,16 |
 
 ## 8. Job and worker requirements
 
@@ -91,17 +91,18 @@ Priority values: `MUST` is required for MVP correctness; `SHOULD` is expected un
 | REQ-JOB-001 | Scheduled work MUST be durable or reconstructable after restart. | MUST | No lost recovery | PostgreSQL jobs | Restart test | 7 |
 | REQ-JOB-002 | Job claiming MUST use lease/lock ownership and reject stale writers. | MUST | Concurrency | DB locks | Concurrent worker test | 7 |
 | REQ-JOB-003 | Worker MUST recheck payment/order/case/opt-out/incident/policy/action state immediately before effects. | MUST | Race safety | Provider/policy | Preflight E2E | 7,9 |
-| REQ-JOB-004 | Repeated failures MUST enter dead-letter status with controlled replay preserving identity. | SHOULD | Operations | Job persistence | DLQ/replay test | 7,16 |
+| REQ-JOB-004 | If dedicated DLQ capability is implemented, repeatedly failing jobs SHOULD enter dead-letter status with controlled replay preserving identity. This optional Stretch capability must not be required for the MVP workflow. | MAY (STRETCH) | Operations | Job persistence | Optional DLQ/replay test | 7,16 |
 | REQ-JOB-005 | Success, opt-out, cancellation, suppression, and exhaustion MUST cancel applicable future jobs idempotently. | MUST | Stop rules | Case/job service | Cancellation tests | 6,7,9 |
 
 ## 9. Attribution and measurement requirements
 
 | ID | Requirement | Priority | Source/rationale | Dependencies | Verification | Phase |
 |---|---|---|---|---|---|---|
-| REQ-ATTR-001 | Eligible cases MUST receive immutable control/treatment assignment before treatment. | MUST | Lift measurement | Experiment service | Assignment tests | 11 |
-| REQ-ATTR-002 | Case outcomes MUST classify natural, assisted, suppressed, unrecovered, control, and treatment consistently. | MUST | Revenue measurement | Reconciliation/actions | Outcome tests | 11 |
+| REQ-ATTR-001 | When an approved experiment is active and a case is eligible, the case MAY receive an immutable control/treatment assignment before treatment. This is Stretch and is not required for normal MVP attribution. | MAY (STRETCH) | Optional lift measurement | Experiment service | Assignment tests when enabled | 11 |
+| REQ-ATTR-002 | MVP case outcomes MUST classify natural, assisted, suppressed, and unrecovered consistently at case level, with recovery cost, net recovery, and applicable refund/reversal adjustments. | MUST | Revenue measurement | Reconciliation/actions | Outcome and adjustment tests | 9,11 |
 | REQ-ATTR-003 | Attribution MUST use configured case-level window and deterministic event ordering. | MUST | Avoids false credit | Event timestamps | Window tests | 11 |
-| REQ-ATTR-004 | Reports MUST show recovery cost, net recovery, rates, lift, sample information, and limitations. | MUST | Honest ROI | Metrics | Metric/E2E tests | 11,13 |
+| REQ-ATTR-004 | MVP reports MUST show recovery cost, net recovery, recovery rates, and measurement limitations. If an approved experiment is active, experiment-specific lift and sample information MAY also be shown. | MUST | Honest ROI | Metrics | MVP metric/E2E tests | 11,13 |
+| REQ-ATTR-005 | Experiment-specific control/treatment analytics and treatment lift MAY be provided for approved experiments, but MUST NOT block core case-level attribution or MVP completion. | MAY (STRETCH) | Optional experimentation | Experiment service/metrics | Optional experiment analytics tests | 11,13 |
 
 ## 10. API, UI, auth, and tenancy requirements
 
@@ -127,7 +128,8 @@ Priority values: `MUST` is required for MVP correctness; `SHOULD` is expected un
 | REQ-OBS-002 | API and worker MUST expose safe liveness/readiness/dependency health and stale/backlog signals. | MUST | Failure visibility | Health checks | Health tests | 12,15 |
 | REQ-PERF-001 | Valid webhook acknowledgement SHOULD meet p95 ≤ 2 seconds after validation, with heavy processing asynchronous. | SHOULD | Provider reliability | API/runtime | Load test | 2,12 |
 | REQ-PERF-002 | Common read API p95 SHOULD be ≤ 500 ms and initial dashboard p95 ≤ 2 seconds for seeded demo data. | SHOULD | Usable dashboard | Indexes/API | Performance test | 12,13 |
-| REQ-PERF-003 | Due jobs SHOULD be picked up within the configured demo target and AI calls MUST have a configured timeout. | MUST | Timely bounded work | Worker/AI | Worker/load test | 5,7 |
+| REQ-PERF-003 | Due jobs SHOULD be picked up within the configured demo target. | SHOULD | Timely bounded work | Worker | Worker/load test | 7 |
+| REQ-PERF-004 | AI calls MUST have a configured timeout and safe failure behavior. | MUST | Bounded AI dependency | AI adapter | AI timeout/fallback test | 5 |
 
 ## 12. Testing requirements
 
@@ -137,5 +139,4 @@ Priority values: `MUST` is required for MVP correctness; `SHOULD` is expected un
 | REQ-TEST-002 | Database migrations, repositories, webhook-to-case, reconciliation, jobs, adapters, auth, and tenant boundaries MUST have integration tests. | MUST | Integration suite |
 | REQ-TEST-003 | The first vertical slice MUST have browser/API E2E coverage. | MUST | E2E suite |
 | REQ-TEST-004 | Every completed phase MUST run relevant unit/integration tests, functionality E2E, regression E2E, and phase exit checks before completion. | MUST | CI/phase gate |
-| REQ-TEST-005 | Failure injection MUST cover AI/provider/database/worker failures, stale jobs, leases, retries, DLQ/replay, and duplicate effects. | MUST | Resilience suite |
-
+| REQ-TEST-005 | Failure injection MUST cover AI/provider/database/worker failures, stale jobs, leases, bounded retries, safe replay/idempotency, terminal failure, and duplicate effects. Dedicated DLQ/replay infrastructure MAY be tested when the Stretch capability is enabled. | MUST | Resilience suite |

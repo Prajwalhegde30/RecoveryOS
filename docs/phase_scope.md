@@ -287,7 +287,7 @@ This document defines the business and technical boundary of each implementation
 
 **Business Capability:** Timely recovery intervention without duplicate contact.
 
-**Technical Scope:** Durable jobs, leases, claims, retries, cancellation, dead-letter status, startup reconciliation.
+**Technical Scope:** Durable jobs, leases, claims, bounded retries, cancellation, terminal failure status, startup reconciliation, and optional Stretch dead-letter handling.
 
 **In Scope:** PostgreSQL-backed jobs and dedicated worker.
 
@@ -297,7 +297,7 @@ This document defines the business and technical boundary of each implementation
 
 **Inputs:** Allowed/scheduled actions.
 
-**Outputs:** Claimed/executed/cancelled/retried/dead-lettered job outcomes.
+**Outputs:** Claimed/executed/cancelled/retried/terminally failed job outcomes; optional dead-lettered outcomes when the Stretch capability is enabled.
 
 **Major Components:** Scheduler, worker, action service, provider interface.
 
@@ -307,7 +307,7 @@ This document defines the business and technical boundary of each implementation
 
 **Security Impact:** Worker identity, secret handling, policy recheck.
 
-**Testing Scope:** Claims, lease expiry, restart, retry/backoff, cancellation, duplicate execution.
+**Testing Scope:** Claims, lease expiry, restart, bounded retry/backoff, terminal failure, cancellation, duplicate execution, and safe replay/idempotency. Dedicated DLQ tests are optional Stretch coverage.
 
 **Risks:** Lost work or duplicate outbound effect.
 
@@ -419,37 +419,37 @@ This document defines the business and technical boundary of each implementation
 
 ### Phase 11 — Attribution & Recovery Measurement
 
-**Phase Objective:** Measure natural versus assisted recovery and treatment lift.
+**Phase Objective:** Measure MVP case-level recovery outcomes and, when enabled, optional treatment lift.
 
 **Business Capability:** Prove incremental recovery and intervention ROI honestly.
 
-**Technical Scope:** Assignment, case attribution, windows, outcome classifications, metrics/read models.
+**Technical Scope:** Case-level attribution, configured windows, outcome classifications, costs/adjustments, metrics/read models, and optional experiment assignment/lift.
 
-**In Scope:** Control/treatment, natural/assisted/suppressed/unrecovered, costs, refunds/reversals.
+**In Scope:** MVP natural/assisted/suppressed/unrecovered case outcomes, recovery cost, net recovery, refunds/reversals, and deterministic case-level reporting. Optional Stretch: approved experiment configuration, control/treatment assignment, treatment lift, and experiment analytics.
 
 **Out of Scope:** Complex multi-touch marketing attribution or causal certainty claims.
 
-**Dependencies:** Reconciliation, actions, cases, experiment configuration.
+**Dependencies:** Reconciliation, actions, and cases for MVP. Experiment configuration is an optional dependency only for Stretch experimentation.
 
 **Inputs:** Case assignments, actions, verified success, adjustments.
 
 **Outputs:** Case-level attribution and dashboard aggregates.
 
-**Major Components:** Experiment/attribution/metrics services.
+**Major Components:** Attribution/metrics services; optional Experiment service for Stretch.
 
-**Data Impact:** Experiments, assignments, attribution records.
+**Data Impact:** Attribution records and adjustment data for MVP; experiments/assignments only when Stretch is enabled.
 
-**API Impact:** Metrics/experiments endpoints later.
+**API Impact:** MVP metrics/attribution endpoints; experiment endpoints are optional Stretch.
 
 **Security Impact:** Tenant-scoped analytics and PII minimization.
 
-**Testing Scope:** Assignment, windows, duplicate success, multiple actions, adjustment.
+**Testing Scope:** MVP outcome/window/duplicate-success/multiple-action/adjustment tests. Assignment and lift tests are optional Stretch coverage.
 
 **Risks:** Misleading lift or duplicate recovery.
 
 **Acceptance Criteria:** Totals reconcile and limitations are visible.
 
-**Phase Exit Criteria:** Measurement is reproducible, case-level, and labeled.
+**Phase Exit Criteria:** MVP measurement is reproducible, case-level, reconciled, and labeled. Optional experimentation must not block this exit.
 
 ### Phase 12 — API Layer
 
@@ -491,7 +491,7 @@ This document defines the business and technical boundary of each implementation
 
 **Business Capability:** Merchant operations command center.
 
-**Technical Scope:** Shared UI, dashboard, cases, incidents, policies, experiments, health, errors.
+**Technical Scope:** Shared UI, dashboard, cases, incidents, policies, health, errors, and optional Stretch experiment views.
 
 **In Scope:** Responsive Tailwind/shadcn experience, shared tokens/components in `packages/ui/src`.
 
@@ -593,9 +593,9 @@ This document defines the business and technical boundary of each implementation
 
 **Business Capability:** Reliable recovery workflow, not only a happy-path demo.
 
-**Technical Scope:** Layered tests, failure injection, E2E, concurrency, restart, DLQ/replay.
+**Technical Scope:** Layered tests, failure injection, E2E, concurrency, restart, terminal failure, and safe replay/idempotency; optional dedicated DLQ/replay coverage.
 
-**In Scope:** All 20 mandatory scenarios in the implementation plan.
+**In Scope:** All MVP mandatory scenarios in the implementation plan. Dedicated DLQ infrastructure/replay is optional Stretch and is not an MVP completion blocker.
 
 **Out of Scope:** Performance claims beyond measured demo/deployment targets.
 
@@ -613,7 +613,7 @@ This document defines the business and technical boundary of each implementation
 
 **Security Impact:** Auth/isolation/secret tests.
 
-**Testing Scope:** Unit, integration, API, DB, worker, provider, E2E, AI evaluation, resilience.
+**Testing Scope:** Unit, integration, API, DB, worker, provider, E2E, AI evaluation, resilience, retry/replay safety, and terminal-failure behavior. Dedicated DLQ tests apply only if that Stretch capability is enabled.
 
 **Risks:** False confidence from only happy-path tests.
 
@@ -627,7 +627,7 @@ This document defines the business and technical boundary of each implementation
 
 **Business Capability:** Demonstrable RecoveryOS product loop.
 
-**Technical Scope:** Cross-module workflows, simulator batch, approval, incident, runbook operations.
+**Technical Scope:** Cross-module workflows, simulator batch, approval, incident, and operational recovery procedures.
 
 **In Scope:** Failed UPI first slice and broader supported sources.
 
@@ -685,7 +685,6 @@ This document defines the business and technical boundary of each implementation
 
 **Risks:** Fixed totals, flaky setup, misleading labels.
 
-**Acceptance Criteria:** Demo completes from clean state and shows derived recovery/attribution.
+**Acceptance Criteria:** Demo completes from clean state and shows derived MVP recovery/attribution without requiring experiment/control-treatment functionality; any demonstrated experiment capability is visibly optional Stretch.
 
 **Phase Exit Criteria:** MVP and Buildathon demo are reproducible, validated, and honestly presented.
-

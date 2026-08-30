@@ -27,10 +27,10 @@ Payment status and recovered money come only from authoritative server-side reco
 - **Scoring:** Calculate deterministic recovery probability, Expected Recoverable Revenue, and priority from configurable inputs.
 - **AI recommendations:** Interpret evidence and recommend a registered action with rationale, evidence, confidence, and fallback.
 - **Policy enforcement:** Apply contact limits, intervals, quiet hours, incident suppression, approvals, channel availability, and stopping rules.
-- **Scheduling:** Persist durable jobs, claim them with leases, retry safely, cancel stale work, and dead-letter repeated failures.
+- **Scheduling:** Persist durable jobs, claim them with leases, classify retryable/terminal failures, retry safely, cancel stale work, and optionally dead-letter repeated failures as Stretch.
 - **Reconciliation:** Re-check payment state before action and close cases only from verified provider/simulator success.
 - **Incident suppression:** Detect configurable systemic degradation and delay mass outreach until the system recovers.
-- **Attribution:** Separate natural recovery, assisted recovery, control, treatment, suppressed, and unrecovered outcomes.
+- **Attribution:** MVP separates natural recovery, assisted recovery, suppressed, and unrecovered outcomes at case level, including cost/net recovery and adjustments. Control/treatment and experiment lift are optional Stretch.
 - **Audit:** Preserve state, policy, recommendation, action, reconciliation, approval, and configuration history.
 - **Dashboard:** Show revenue at risk, expected/recovered value, incidents, cases, approvals, attribution, and system health.
 
@@ -152,7 +152,7 @@ The final command names must match the actual package scripts; this README must 
 
 ## Testing
 
-The project will require unit, integration, API, database, worker, provider-adapter, concurrency, AI-contract, resilience, and browser E2E tests. Mandatory scenarios include duplicate webhooks/events, concurrent case creation, payment-before/during-worker races, AI failure/malformed output, policy blocks, opt-out, incident suppression, worker restart/lease expiry, provider retry/exhaustion, dead-letter replay, duplicate actions, refunds/reversals, unauthorized operations, tenant isolation, and money correctness.
+The project will require unit, integration, API, database, worker, provider-adapter, concurrency, AI-contract, resilience, and browser E2E tests. MVP scenarios include duplicate webhooks/events, concurrent case creation, payment-before/during-worker races, AI failure/malformed output, policy blocks, opt-out, incident suppression, worker restart/lease expiry, provider retry/exhaustion with terminal failure, safe replay, duplicate actions, refunds/reversals, unauthorized operations, tenant isolation, and money correctness. Dedicated dead-letter replay and experiment/control-treatment tests are optional Stretch coverage.
 
 Exact test commands are not currently available. They must be added to the README when the test framework is installed and must run in CI.
 
@@ -177,7 +177,7 @@ The following are planned troubleshooting categories; exact commands will be add
 
 - **Database unavailable:** check `DATABASE_URL`, PostgreSQL readiness, migrations, and API readiness.
 - **Webhook rejected:** verify configured signature secret, payload shape, timestamp/replay rules, and provider mode.
-- **Worker unhealthy:** inspect job leases, worker process, database readiness, and dead-letter status.
+- **Worker unhealthy:** inspect job leases, worker process, database readiness, terminal failure status, and optional dead-letter status.
 - **AI unavailable:** confirm provider configuration; deterministic fallback should keep the workflow safe.
 - **Razorpay disconnected:** use the explicitly labeled simulator/test adapter; do not claim live provider results.
 - **Stale action:** inspect payment reconciliation, opt-out, incident, policy, and job state; never manually bypass preflight.

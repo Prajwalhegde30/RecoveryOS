@@ -211,11 +211,11 @@ Before any customer-facing or payment action, the worker rechecks authoritative 
 
 - **Input:** Approved action, fresh preflight snapshot, action idempotency key.
 - **Processing:** Invoke the registered provider adapter once.
-- **Output:** Provider reference and action delivery/result status.
+- **Output:** Provider reference when the provider returns one, plus action delivery/result status.
 - **Responsible component:** Worker/action service and adapter.
 - **Persistence:** `recovery_actions`, job state, audit/metrics.
-- **Failure:** Typed retryable/terminal failure with bounded backoff or dead-letter status.
-- **Idempotency:** Provider reference is reused on retry; no duplicate external effect.
+- **Failure:** Typed retryable/terminal failure with bounded backoff and safe fallback. A dedicated dead-letter workflow is optional Stretch; terminal failure is the MVP outcome.
+- **Idempotency:** Reuse the same action idempotency key on retry. If a provider reference already exists, retain/reuse it for reconciliation. If the first provider call timed out or otherwise produced an ambiguous result, reconcile before creating another external effect; never assume a provider reference exists after a timeout/network failure.
 - **Security:** Authorization and policy are rechecked; no secret enters logs.
 
 ### Step 18 — Reconciliation
@@ -228,7 +228,7 @@ Success, opt-out, cancellation, exhaustion, or suppression cancels applicable fu
 
 ### Step 20 — Attribution
 
-The case is assigned to control/treatment before treatment. A verified success is classified as natural or assisted within the configured case-level attribution window. Duplicate success events are no-ops; refunds/reversals become explicit adjustments. Attribution measures product lift; it does not by itself prove causal certainty.
+For MVP, a verified success is classified at case level as natural, assisted, suppressed, or unrecovered within the configured attribution window; recovery cost, net recovery, and applicable refunds/reversals are explicit persisted values/adjustments. Duplicate success events are no-ops. Control/treatment assignment and treatment-lift reporting occur only when an approved eligible experiment is active, and are not prerequisites for normal recovery or attribution.
 
 ### Step 21 — Audit
 
@@ -253,10 +253,10 @@ The dashboard reads typed API projections for revenue at risk, expected recovera
 | Policy rejection | Persist decisive rule and block/schedule/suppress | No forbidden effect |
 | Customer opt-out | Cancel future contact and close/suppress case | No later customer outreach |
 | Incident suppression | Associate cases, cancel/delay jobs | No mass outreach or extra obligation |
-| Provider failure | Classify, retry/backoff, or dead-letter | No false recovery |
+| Provider failure | Classify retryable/terminal and retry/backoff or use safe fallback; optionally dead-letter when Stretch is enabled | No false recovery |
 | Worker restart | Recover expired leases and due jobs | No lost/duplicate action |
 | Retry | Recheck and reuse idempotency key | At most one external effect |
-| Dead-letter | Isolate after configured attempts | Operator review/replay only |
+| Terminal failure / optional dead-letter | Isolate after configured attempts; dedicated DLQ/replay is Stretch | Operator review and safe replay/reconciliation only |
 | Replay | Preserve event/job identity | Safe idempotent reprocessing |
 | Refund/reversal | Append adjustment/reconciliation event | Net reporting changes explicitly |
 
@@ -335,7 +335,7 @@ An Incident is operational context, not a financial obligation. Suppression and 
 | AI timeout | Adapter timer | Fallback/wait/escalate | Configured retry only | No financial effect | AI fallback |
 | Malformed AI output | Schema validator | Reject and fallback | No blind retry | No action effect | Recommendation rejection |
 | Policy block | Policy evaluator | Block/schedule/suppress | Only if policy says | No forbidden contact | Policy decision |
-| Provider action error | Adapter response/timeout | Retry/backoff/fallback/DLQ | Configured bounded retry | No recovered amount | Action failure |
+| Provider action error | Adapter response/timeout | Retry/backoff/fallback or terminal failure; optional DLQ when Stretch is enabled | Configured bounded retry | No recovered amount | Action failure |
 | Stale job | Last-mile preflight | Cancel/re-evaluate | Re-schedule only if allowed | No stale outreach | Cancellation |
 | Worker crash | Lease expiry/health | Reclaim/reconcile | Idempotent retry | No duplicate effect | Worker/job event |
 | Incident degradation | Detector thresholds | Suppress/delay | Monitor resolution | No extra obligation | Incident/suppression |

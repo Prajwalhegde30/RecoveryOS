@@ -25,7 +25,7 @@ No implementation currently exists. Names and signatures below are conceptual in
 | Actions | Action service | Reserve/record external effect and idempotency |
 | Jobs | Scheduler/worker service | Durable due work, leases, retries, cancellation |
 | Incidents | Incident service | Correlation context only; no financial obligation |
-| Experiments | Experiment service | Immutable case assignment and configuration |
+| Experiments | Optional Experiment service | Immutable case assignment/configuration only when an approved Stretch experiment is active; not required for MVP attribution |
 | Attribution | Attribution service | One case-level outcome and explicit adjustments |
 | Audit events | Audit service | Append-only reconstruction record |
 | Merchant policy | Configuration/policy service | Typed, versioned, tenant-scoped rules |
@@ -48,7 +48,7 @@ PolicyDecisionRepository
 RecoveryActionRepository
 ScheduledJobRepository
 IncidentRepository
-ExperimentRepository
+ExperimentRepository (optional Stretch)
 AttributionRepository
 AuditEventRepository
 MerchantRepository
@@ -109,14 +109,14 @@ The application layer composes repositories through a unit-of-work or explicit t
 - `claim_due_job` uses lease/lock semantics and returns one claimable job.
 - `cancel_jobs_for_case` is idempotent and records the reason.
 - `record_action_result` is safe if a worker retries after an ambiguous provider response.
-- `dead_letter_job` preserves original identity and failure details safe for operators.
+- Repeated failure must persist an explicit terminal failure status, retry metadata, safe operator detail, and replay/reconciliation identity. A `dead_letter_job` capability may be provided as optional Stretch infrastructure; it is not required for the MVP workflow.
 
 ### Incidents and experiments
 
 - Incident upsert is unique by merchant, dimension set, and incident window.
 - Case association is unique and does not change obligation totals.
-- Experiment assignment is immutable per experiment/case.
-- Attribution is one current case-level record with explicit adjustment history.
+- Experiment assignment is immutable per experiment/case only when an approved Stretch experiment is active.
+- MVP attribution is one current case-level record with explicit adjustment history and does not depend on experiment persistence.
 
 ### Audit
 
@@ -134,7 +134,7 @@ The following operations MUST be atomic:
 6. Claim a job and write its lease before a worker acts.
 7. Reserve action idempotency before an external effect.
 8. Reconcile payment success, update case amount/state, cancel future jobs, and append audit.
-9. Assign experiment variant before any treatment action.
+9. If an approved eligible experiment is active, assign its variant before any treatment action; this optional Stretch operation is not required for normal MVP attribution.
 
 External provider calls cannot share a database transaction. They use an idempotency key, a durable action record, and reconciliation for ambiguous responses.
 
@@ -171,7 +171,7 @@ Case/job/action updates SHOULD use expected version or lease ownership to reject
 | Action | merchant + action idempotency key | `recovery_actions` unique | Prior provider/result |
 | Scheduled job | merchant + job idempotency key | `scheduled_jobs` unique | Existing job |
 | Recovered amount | obligation + verified payment identity | reconciliation/attribution constraints | No increment |
-| Experiment assignment | experiment + case | assignment unique | Existing variant |
+| Experiment assignment (optional Stretch) | experiment + case | assignment unique when enabled | Existing variant |
 
 Retries, replay, and concurrency must use the same identity rules. No caller may create a second effect by changing only a local request ID.
 
@@ -216,7 +216,7 @@ Required access patterns:
 - unprocessed events by merchant/status/received time;
 - incidents by merchant/status/dimension;
 - audit timeline by entity/time;
-- experiments by experiment/variant;
+- experiments by experiment/variant when the optional Stretch capability is enabled;
 - reconciliation by provider/payment/obligation identity.
 
 Indexes are defined canonically in `DATA_MODEL.md` and concretely in `schema.md` once implementation exists. New queries must include a query plan review for the seeded batch and must not remove tenant predicates for performance.

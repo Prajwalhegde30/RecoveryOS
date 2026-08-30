@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-This is the implementation-oriented schema reference for the approved conceptual data model. It describes proposed PostgreSQL tables, columns, relationships, constraints, indexes, lifecycle, tenant scope, retention, and financial invariants. It is not evidence that these tables already exist; implementation begins in Phase 1 through versioned migrations.
+This is the implementation-oriented schema reference for the canonical conceptual data model. It describes proposed PostgreSQL tables, columns, relationships, constraints, indexes, lifecycle, tenant scope, retention, and financial invariants. It is not evidence that these tables already exist; implementation begins in Phase 1 through versioned migrations.
 
 Unless implementation proves a necessary change, table and column intent must remain aligned with `DATA_MODEL.md`.
 
@@ -145,7 +145,7 @@ Unless implementation proves a necessary change, table and column intent must re
 **Columns:** `id` PK; `merchant_id`; optional case/action; job type/status; `due_at`; attempt count/max; `lease_until`; `next_retry_at`; `idempotency_key`; last error category/safe detail; timestamps; correlation ID.  
 **Constraints:** Unique `(merchant_id,idempotency_key)`; valid lease/status; non-negative attempts.  
 **Indexes:** status/due/lease; merchant/case; retry time.  
-**Lifecycle:** Pending, claimed, succeeded, cancelled, retrying, dead-lettered.
+**Lifecycle:** Pending, claimed, succeeded, cancelled, retrying, or terminally failed. A dedicated `dead-lettered` state/workflow is optional Stretch capability and must not block MVP completion.
 
 ### incidents
 
@@ -164,13 +164,13 @@ Unless implementation proves a necessary change, table and column intent must re
 
 ### experiments
 
-**Purpose:** Control/treatment configuration.  
+**Purpose:** Optional Stretch control/treatment configuration; not required for MVP case-level attribution.
 **Columns:** `id` PK; `merchant_id`; name; status; control/treatment ratios; attribution window; eligibility JSON; timestamps.  
 **Constraints:** Ratios valid/non-negative and total configured appropriately; valid status/window.
 
 ### experiment_assignments
 
-**Purpose:** Immutable case variant.  
+**Purpose:** Optional Stretch immutable case variant for an approved experiment. It is not a prerequisite for normal recovery.
 **Columns:** `id` PK; `experiment_id`; `recovery_case_id`; variant; assigned_at; assignment version.  
 **Constraints:** Unique `(experiment_id,recovery_case_id)`; valid variant and same merchant scope.  
 **Lifecycle:** Immutable after assignment.
@@ -180,7 +180,7 @@ Unless implementation proves a necessary change, table and column intent must re
 **Purpose:** One case-level measurement outcome.  
 **Columns:** `id` PK; `merchant_id`; `recovery_case_id` unique; optional assignment/action/payment references; outcome; window start/end; recovered amount; adjustment amount; confidence; limitations; timestamps.  
 **Constraints:** One record per case; valid outcome/window; amounts non-negative/adjustment rules.  
-**Indexes:** merchant/outcome/time; experiment/variant through assignment.
+**Indexes:** merchant/outcome/time. Experiment/variant indexes through assignments are optional Stretch indexes and must not be required by MVP reporting.
 
 ### audit_events
 
@@ -192,11 +192,11 @@ Unless implementation proves a necessary change, table and column intent must re
 
 ## 4. Index strategy
 
-Indexes prioritize merchant-scoped operational queries: open cases by status/priority, cases by obligation/customer/source/time, unprocessed events, due/leased jobs, active incidents, audit timelines, experiment variants, and provider/payment reconciliation. Every index must be justified by a real access pattern and checked against the demo dataset; indexes must not remove tenant predicates.
+Indexes prioritize merchant-scoped operational queries: open cases by status/priority, cases by obligation/customer/source/time, unprocessed events, due/leased jobs, active incidents, audit timelines, and provider/payment reconciliation. Experiment-variant indexes are optional Stretch support. Every index must be justified by a real access pattern and checked against the demo dataset; indexes must not remove tenant predicates.
 
 ## 5. Idempotency constraints
 
-The schema must enforce uniqueness for external events, payment IDs, obligations, case-to-obligation, action keys, job keys, experiment assignments, and case attribution. Financial recovery totals use obligation/payment identity and explicit adjustments, never row count or event count.
+The schema must enforce uniqueness for external events, payment IDs, obligations, case-to-obligation, action keys, job keys, and case attribution. Experiment-assignment uniqueness applies when the optional Stretch capability is enabled. Financial recovery totals use obligation/payment identity and explicit adjustments, never row count or event count.
 
 ## 6. Concurrency constraints
 

@@ -12,7 +12,10 @@ from app.cases.state_machine import ActorType, validate_transition
 from app.jobs.service import JobService
 from app.persistence.models import (
     AuditEvent,
+    Customer,
     JobStatus,
+    Obligation,
+    PaymentAttempt,
     RecoveryAction,
     RecoveryCase,
     RecoveryCaseStatus,
@@ -173,6 +176,31 @@ class WorkerService:
                 return None
             if job.policy_version_id is None:
                 return None
+            obligation = self.session.scalar(
+                select(Obligation).where(
+                    Obligation.id == case.obligation_id,
+                    Obligation.merchant_id == self.merchant_id,
+                )
+            )
+            if obligation is None:
+                return None
+            customer_external_id = None
+            if case.customer_id is not None:
+                customer = self.session.scalar(
+                    select(Customer).where(
+                        Customer.id == case.customer_id,
+                        Customer.merchant_id == self.merchant_id,
+                    )
+                )
+                customer_external_id = customer.external_customer_id if customer else None
+            payment = self.session.scalar(
+                select(PaymentAttempt)
+                .where(
+                    PaymentAttempt.recovery_case_id == case.id,
+                    PaymentAttempt.merchant_id == self.merchant_id,
+                )
+                .order_by(PaymentAttempt.created_at.desc())
+            )
             return WorkItem(
                 job_id=job.id,
                 action_id=action.id,
@@ -181,6 +209,12 @@ class WorkerService:
                 action_idempotency_key=action.idempotency_key,
                 policy_version_id=job.policy_version_id,
                 case_status=case.status,
+                channel=action.channel,
+                customer_external_id=customer_external_id,
+                obligation_id=obligation.id,
+                amount_minor_units=obligation.amount_at_risk,
+                currency=obligation.currency,
+                payment_id=payment.external_payment_id if payment else None,
             )
 
     def _reserve_execution(self, job_id: str, work: WorkItem) -> bool:

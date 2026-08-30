@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 7 complete; Phase 8 provider adapters and simulator are next
+**Current repository:** Phase 8.1 implemented; Phase 8.2 seeded simulator is next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -47,10 +47,11 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Typed tenant-scoped merchant policy documents with immutable version creation, activation, active-policy lookup, and policy activation audit records.
 - Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
 - Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, terminal failure handling, and a provider-independent worker core with two-stage preflight and graceful shutdown.
+- SDK-neutral payment and messaging adapter contracts, typed provider failures/health, deterministic simulated payment/messaging providers, registered-action provider routing, and configurable AI adapter composition.
 
 ### Missing
 
-- Provider adapters, simulator, reconciliation, incidents, attribution, frontend, auth, metrics, and deployment. The worker runtime currently exposes provider/preflight seams; concrete payment and messaging adapters remain Phase 8 work.
+- Seeded simulator, authoritative reconciliation, incidents, attribution, frontend, auth, metrics, and deployment. External SDK/credential composition remains deployment-specific; the worker runtime now has payment/messaging adapter seams.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -545,7 +546,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 8 — Provider Integrations & Simulator
 
-### Sprint 8.1 — Payment, messaging, AI, and scheduler adapters
+### Sprint 8.1 — Payment, messaging, AI, and scheduler adapters — COMPLETE
 
 **Sprint Objective:** Provide testable provider implementations behind the approved interfaces.
 
@@ -555,17 +556,17 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement payment adapter for authoritative status lookup and permitted link/retry path.
-- [ ] Implement simulated messaging adapter with delivery/failure outcomes and cost.
-- [ ] Connect configured AI adapter and deterministic fallback.
-- [ ] Implement adapter health and typed error mapping.
-- [ ] Ensure provider-specific payloads do not leak into domain models.
+- [x] Implement SDK-neutral payment adapter contracts for authoritative status lookup and permitted link/retry paths, plus a transport mapper.
+- [x] Implement simulated payment and messaging adapters with delivery/failure outcomes, cost, health, and per-identity idempotency.
+- [x] Connect the configured AI adapter boundary to deterministic fallback selection without introducing an unapproved provider SDK.
+- [x] Implement adapter health and typed safe error mapping, including timeout, rate-limit, malformed-response, transport, and ambiguous-result cases.
+- [x] Ensure provider-specific payloads remain inside integration transports and registered actions route through an application executor.
 
 **Files / Modules Affected:** `apps/api` integrations/adapters/config; provider fixtures.
 
-**Tests:** Provider success/failure/rate-limit, adapter timeout, delivery status, health, idempotency, and simulator/provider contract parity.
+**Tests:** Provider success/failure/rate-limit, adapter timeout, malformed response, delivery status, health, idempotency, typed action routing, AI configuration validation, and provider contract parity.
 
-**Sprint Exit Criteria:** Every external effect is adapter-mediated, typed, observable, and safely simulated in tests.
+**Sprint Exit Criteria:** COMPLETE — every currently implemented external effect is adapter-mediated, typed, observable, and safely simulated in tests; provider-specific SDK wiring remains an explicit composition boundary.
 
 ### Sprint 8.2 — Seeded simulator and scenario controls
 

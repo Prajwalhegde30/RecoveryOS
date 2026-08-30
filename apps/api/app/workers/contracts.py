@@ -14,6 +14,12 @@ class WorkItem:
     action_idempotency_key: str
     policy_version_id: str
     case_status: str
+    channel: str | None = None
+    customer_external_id: str | None = None
+    obligation_id: str | None = None
+    amount_minor_units: int | None = None
+    currency: str | None = None
+    payment_id: str | None = None
 
 
 @dataclass(frozen=True)

@@ -6,7 +6,7 @@
 **Decision record:** [DECISIONS.md](./DECISIONS.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)
 
-**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, safe replay handling, source-aware obligation identity, one-case-per-obligation association, PRD-aligned audited state transitions, deterministic root-cause diagnosis, configurable integer-safe case scoring, provider-neutral schema-validated AI recommendations, deterministic fallback orchestration, fallback audit provenance, typed versioned merchant-policy lifecycle, deterministic policy precedence evaluation, audited approval resolution, durable jobs, policy-trace persistence, and a provider-independent restart-safe worker core are implemented. Concrete provider execution, authoritative reconciliation, incidents, authentication, and dashboard workflows remain planned for later phases.
+**Implementation status:** The repository baseline, SQLAlchemy persistence metadata, Alembic migration runtime, initial schema migrations, local PostgreSQL Compose service, persistence constraint tests, canonical event contract, signed webhook boundary, event idempotency, safe replay handling, source-aware obligation identity, one-case-per-obligation association, PRD-aligned audited state transitions, deterministic root-cause diagnosis, configurable integer-safe case scoring, provider-neutral schema-validated AI recommendations, deterministic fallback orchestration, fallback audit provenance, typed versioned merchant-policy lifecycle, deterministic policy precedence evaluation, audited approval resolution, durable jobs, policy-trace persistence, a provider-independent restart-safe worker core, SDK-neutral payment/messaging transport adapters, deterministic simulated payment/messaging providers, and registered-action routing are implemented. Concrete external provider wiring, authoritative reconciliation, incidents, authentication, and dashboard workflows remain planned for later phases.
 
 ## 1. Purpose and architectural goals
 
@@ -232,7 +232,7 @@ The following interfaces are required at the application boundary:
 - `JobScheduler`: schedule, cancel, claim, retry, and terminally fail durable work; dedicated dead-letter workflow is an optional Stretch capability.
 - `Clock`: provide injectable time for deterministic tests and race scenarios.
 
-Initial implementations are Razorpay-style/test-mode, simulated messaging, deterministic simulator, configured AI provider, and PostgreSQL scheduler. Each implementation exposes health and failure state without changing domain contracts.
+Initial implementations are Razorpay-style/test-mode transport seams, simulated payment and messaging providers, deterministic simulator, configured AI provider, and PostgreSQL scheduler. The transport and simulator implementations expose health, typed safe failures, and idempotent result handling without changing domain contracts. External credentials and SDK wiring remain deployment/application-composition concerns.
 
 ## 12. Authentication, authorization, and tenancy
 

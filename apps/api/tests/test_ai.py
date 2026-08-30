@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.ai.contracts import ActionType, RecommendationEvidence, RecommendationOutput
+from app.ai.factory import configured_ai_provider
 from app.ai.fallback import deterministic_fallback
 from app.ai.provider import (
     AIOutputValidationError,
@@ -123,6 +124,25 @@ def test_provider_failures_are_typed_and_safe() -> None:
             prompt_version="prompt-v1",
             model_version="model-v1",
         ).recommend(evidence())
+
+
+def test_ai_factory_selects_deterministic_fallback_or_validates_transport_mode() -> None:
+    from app.config import Settings
+
+    deterministic = Settings(ai_provider="deterministic")
+    assert configured_ai_provider(deterministic) is None
+
+    with pytest.raises(ValueError, match="requires an application-provided transport"):
+        configured_ai_provider(
+            Settings(ai_provider="transport", ai_timeout_ms=1000, ai_model="model")
+        )
+
+    provider = configured_ai_provider(
+        Settings(ai_provider="transport", ai_timeout_ms=1000, ai_model="model"),
+        transport=lambda payload: recommendation(),
+    )
+    assert provider is not None
+    assert provider.recommend(evidence()).action == ActionType.WAIT
 
     with pytest.raises(AIOutputValidationError, match="invalid recommendation"):
         ProviderAdapter(

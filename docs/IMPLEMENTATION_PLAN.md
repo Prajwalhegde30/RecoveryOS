@@ -39,10 +39,11 @@ The repository began without implementation artifacts. The Phase 0 baseline is i
 - Root pnpm workspace and Turborepo task graph.
 - `apps/web` Next.js TypeScript shell, `apps/api` FastAPI health boundary, and `packages/ui` shared UI package.
 - Husky pre-commit quality hook, Prettier, ESLint, Ruff, mypy, Vitest, pytest, CI workflow, and smoke E2E script.
+- Canonical signed event contract, webhook signature verification, normalized event persistence, and correlation-ID generation.
 
 ### Missing
 
-- Product workflow modules, repositories, API, workers, adapters, simulator, frontend, auth, metrics, and deployment.
+- Recovery Case workflow, event replay controls, repositories for remaining workflow entities, workers, adapters, simulator, frontend, auth, metrics, and deployment.
 - PostgreSQL migration runtime is being implemented in Phase 1; local Docker Compose and the baseline SQLAlchemy metadata are now present.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -249,7 +250,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 2 — Event Ingestion & Idempotency
 
-### Sprint 2.1 — Canonical event contract and webhook boundary
+### Sprint 2.1 — Canonical event contract and webhook boundary — COMPLETE
 
 **Sprint Objective:** Accept validated provider/simulator events and normalize them into canonical facts.
 
@@ -259,18 +260,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Define canonical event types and validation rules.
-  - [ ] Cover payment failure/success, checkout, subscription, invoice, opt-out, action, and incident events.
-  - [ ] Preserve provider identity, source object, amount/currency, timestamps, and correlation ID.
-- [ ] Implement signature verification before domain mutation.
-- [ ] Implement request validation, safe error mapping, and normalized event persistence.
-- [ ] Generate/propagate correlation IDs across request, persistence, and follow-up jobs.
+- [x] Define canonical event types and validation rules.
+  - [x] Cover payment failure/success, checkout, subscription, invoice, opt-out, action, and incident events.
+  - [x] Preserve provider identity, source object, amount/currency, timestamps, and correlation ID.
+- [x] Implement signature verification before domain mutation.
+- [x] Implement request validation, safe error mapping, and normalized event persistence.
+- [x] Generate correlation IDs when absent and persist them with accepted events.
 
 **Files / Modules Affected:** `apps/api` API ingestion, integrations, event normalization, config, persistence.
 
-**Tests:** Valid event, invalid payload, invalid signature, missing required field, timestamp handling, correlation ID, and tenant scope.
+**Tests:** Valid event, invalid payload, invalid signature, missing required field, timestamp handling, currency/amount validation, correlation ID, persistence, and tenant identity coverage.
 
-**Sprint Exit Criteria:** Valid events are normalized and persisted; invalid signatures create no domain mutation; error responses are safe.
+**Sprint Exit Criteria:** Valid signed events are normalized and persisted; invalid signatures and malformed payloads create no domain mutation; API responses are safe and correlation IDs are retained.
 
 ### Sprint 2.2 — Event idempotency and replay behavior
 

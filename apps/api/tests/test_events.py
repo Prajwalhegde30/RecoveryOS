@@ -1,0 +1,125 @@
+import hashlib
+import hmac
+from datetime import UTC, datetime
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
+from app.api.dependencies import get_db_session
+from app.config import get_settings
+from app.events.contracts import RevenueEvent
+from app.events.security import verify_signature
+from app.events.service import EventIngestionService
+from app.main import app
+from app.persistence.base import Base
+from app.persistence.models import ProcessedEvent
+from app.persistence.models import RevenueEvent as RevenueEventRecord
+
+
+def event(event_id: str = "evt_1") -> RevenueEvent:
+    return RevenueEvent(
+        event_id=event_id,
+        event_type="payment.failed",
+        merchant_id="merchant_1",
+        source_object_id="order_1",
+        external_obligation_id="order_1",
+        obligation_type="payment",
+        amount_minor_units=249900,
+        currency="inr",
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+def test_event_contract_normalizes_currency_and_requires_timezone() -> None:
+    normalized = event()
+    assert normalized.currency == "INR"
+    with pytest.raises(ValueError, match="timezone"):
+        invalid = normalized.model_dump()
+        invalid["occurred_at"] = datetime(2026, 1, 1)
+        RevenueEvent(**invalid)
+
+    with pytest.raises(ValueError, match="provided together"):
+        RevenueEvent(
+            event_id="evt_bad",
+            event_type="payment.failed",
+            merchant_id="merchant_1",
+            source_object_id="order_1",
+            amount_minor_units=100,
+            occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+
+
+def test_signature_verification_uses_constant_time_digest_comparison() -> None:
+    payload = b'{"event_id":"evt_1"}'
+    secret = "test-secret"
+    digest = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    assert verify_signature(payload, f"sha256={digest}", secret)
+    assert not verify_signature(payload, "sha256=bad", secret)
+    assert not verify_signature(payload, None, secret)
+
+
+def test_event_ingestion_is_idempotent_and_persists_normalized_facts() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        service = EventIngestionService(session, "simulator")
+        first = service.ingest(event())
+        second = service.ingest(event())
+
+        assert first.duplicate is False
+        assert second.duplicate is True
+        assert first.correlation_id == second.correlation_id
+        assert len(session.scalars(select(ProcessedEvent)).all()) == 1
+        records = session.scalars(select(RevenueEventRecord)).all()
+        assert len(records) == 1
+        assert records[0].normalized_payload["currency"] == "INR"
+        replayed = service.replay("merchant_1", "evt_1")
+        assert replayed.duplicate is True
+        assert len(session.scalars(select(RevenueEventRecord)).all()) == 1
+
+
+def test_webhook_rejects_bad_signature_before_persistence() -> None:
+    get_settings().webhook_secret = "test-secret"
+    response = TestClient(app).post(
+        "/webhooks/simulator",
+        content=event().model_dump_json(),
+        headers={"X-Webhook-Signature": "sha256=invalid"},
+    )
+    assert response.status_code == 401
+
+
+def test_webhook_accepts_signed_event_with_injected_session() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    def session_dependency():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    get_settings().webhook_secret = "test-secret"
+    raw = event("evt_api").model_dump_json().encode()
+    digest = hmac.new(b"test-secret", raw, hashlib.sha256).hexdigest()
+    try:
+        response = TestClient(app).post(
+            "/webhooks/simulator",
+            content=raw,
+            headers={"X-Webhook-Signature": f"sha256={digest}"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["duplicate"] is False

@@ -22,7 +22,7 @@ Before every sprint, read the relevant source documents:
 - `ARCHITECTURE.md` — chosen stack, runtime shape, module boundaries, dependency direction, infrastructure.
 - `DATA_MODEL.md` — entities, constraints, indexes, transactions, idempotency, migrations.
 - `DECISIONS.md` — rationale, alternatives, trade-offs, and status of major technical decisions.
-- `IMPLEMENTATION_PLAN.md` — current sprint, dependencies, tasks, tests, documentation gates, and exit criteria.
+- `IMPLEMENTATION_PLAN.md` — current sprint, dependencies, tasks, tests, integration gates, and exit criteria.
 
 The repository is currently missing all implementation artifacts. Existing correct documentation is not a future coding task; it is a prerequisite and review contract.
 
@@ -59,31 +59,17 @@ The repository is greenfield unless a future sprint discovers otherwise. Discove
 - Keep mutable business values in validated configuration, merchant policies, feature flags, or experiment overrides; never scatter magic values.
 - Keep routes/controllers thin and business logic in application/domain modules.
 - Add tests with the behavior, not after all implementation is finished.
-- Update the owning documentation in the same sprint as a material behavior/contract change.
+- Update an existing source document only when implementation causes a material change to its owned information.
 - Commit and push each completed sprint or coherent step to `origin/main` with a reviewable commit.
 - Stop and update `DECISIONS.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`, and this plan before proceeding if a decision conflict appears.
 
-## 5. Documentation lifecycle
+## 5. Documentation change rule
 
-Only the following documents exist at the start: `PRD.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`, `DECISIONS.md`, and this plan.
+The current documentation set is intentionally limited to `PRD.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`, `DECISIONS.md`, and this plan. The coding agent must not create additional Markdown files as a prerequisite for a sprint or phase.
 
-Create/update documents progressively:
+Documentation changes are conditional and exception-based. Before changing documentation, check whether the information is already owned by an existing document. Update only the relevant existing document when implementation materially changes product requirements, architecture, the data model, or an accepted technical decision. A product change requires explicit approval before `PRD.md` is changed. Do not create replacement documents, phase-specific documents, duplicate decision files, or documentation-only work items merely because a subsystem is being implemented.
 
-| Implementation point | Document |
-|---|---|
-| Event ingestion and normalization begins | `docs/EVENT_MODEL.md` |
-| Recovery Case lifecycle implementation begins | `docs/STATE_MACHINE.md` |
-| AI recommendation implementation begins | `docs/AI_CONTRACT.md` |
-| Policy evaluation implementation begins | `docs/POLICY_ENGINE.md` |
-| API boundaries implemented | `docs/API_SPEC.md` |
-| Security hardening begins | `docs/SECURITY.md` |
-| Test suite becomes substantial | `docs/TESTING_STRATEGY.md` |
-| Observability implemented | `docs/OBSERVABILITY.md` |
-| Attribution implemented | `docs/ATTRIBUTION.md` |
-| Operational workflows become meaningful | `docs/RUNBOOK.md` |
-| Demo stabilizes | `docs/DEMO.md` |
-
-Do not create multiple decision files. `DECISIONS.md` remains the single decision/ADR location. If implementation reveals a product-level conflict, stop, flag it, and update the PRD only after explicit product resolution.
+Documentation quality is still required, but it is not a routine sprint completion gate. Implementation, tests, integration, E2E validation, and phase exit criteria determine completion.
 
 ## 6. Project Definition of Done
 
@@ -99,7 +85,7 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 - All tasks and subtasks are complete.
 - Required migrations are versioned and reversible/forward-safe as appropriate.
 - Required tests pass, including negative paths.
-- Relevant documentation is created or updated without duplication.
+- Any necessary updates to existing source documents are consistent and non-duplicated.
 - Sprint exit criteria are objectively satisfied.
 - Changes are committed and pushed.
 
@@ -116,6 +102,21 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 - Financial correctness, safety, tenant isolation, auditability, and resilience are demonstrated.
 - The five-minute Buildathon demo is reproducible from a seeded dataset.
 - Synthetic, simulated, sandbox, and real provider behavior are clearly labeled.
+
+### Mandatory phase completion gate
+
+After every phase, the coding agent MUST:
+
+1. Complete all sprints in that phase.
+2. Run the relevant unit and integration tests.
+3. Run end-to-end tests for the functionality implemented so far.
+4. Run regression E2E tests covering previously completed functionality.
+5. Verify the phase exit criteria.
+6. Resolve or record any critical defect or blocker.
+7. Mark the phase complete only when the required E2E tests pass.
+8. Proceed to the next phase only after this gate passes.
+
+Documentation is not a phase-completion prerequisite. Existing source documents are updated only when implementation materially changes their owned content.
 
 ## 7. Phase overview
 
@@ -167,8 +168,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Workspace install, package graph, task discovery, and clean build/typecheck smoke checks.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md` with finalized package names/version decisions if they differ; update `DECISIONS.md` only for material changes.
-
 **Sprint Exit Criteria:** Clean install succeeds from the lockfile; workspace tasks discover all packages; no product code or duplicate docs are introduced.
 
 ### Sprint 0.2 — Standards and CI baseline
@@ -191,8 +190,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** CI workflow, root scripts, lint/format/type configuration, validation scripts.
 
 **Tests:** Run each gate locally and in CI; intentionally validate a failing gate in a disposable change if safe.
-
-**Documentation Deliverables:** Update `README.md` only if onboarding now exists; otherwise document commands in `ARCHITECTURE.md`.
 
 **Sprint Exit Criteria:** CI blocks failed lint/typecheck/build/test; all gates pass on the clean baseline; commit/push workflow is documented.
 
@@ -221,8 +218,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Apply migrations to an empty database; rerun safely; verify constraints for duplicate event, obligation, case, action, job, and assignment identities.
 
-**Documentation Deliverables:** Update `DATA_MODEL.md` only when SQL implementation clarifies types/constraints; update `ARCHITECTURE.md` runtime commands.
-
 **Sprint Exit Criteria:** Fresh database migration succeeds; constraints reject duplicate identities and invalid money; migration status is deterministic.
 
 ### Sprint 1.2 — Persistence repositories and transaction boundaries
@@ -245,8 +240,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** `apps/api` domain interfaces, persistence models/repositories, transaction utilities.
 
 **Tests:** Repository CRUD, rollback, unique constraint, concurrent insert, row-lock, tenant filter, and transaction atomicity tests.
-
-**Documentation Deliverables:** Update `DATA_MODEL.md` with implementation-confirmed transaction/index details.
 
 **Sprint Exit Criteria:** Application services can persist/load core entities transactionally; no repository silently bypasses tenant scope or uniqueness.
 
@@ -275,8 +268,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Valid event, invalid payload, invalid signature, missing required field, timestamp handling, correlation ID, and tenant scope.
 
-**Documentation Deliverables:** Create `docs/EVENT_MODEL.md` with canonical event schema, provider mapping, validation, and idempotency contract.
-
 **Sprint Exit Criteria:** Valid events are normalized and persisted; invalid signatures create no domain mutation; error responses are safe.
 
 ### Sprint 2.2 — Event idempotency and replay behavior
@@ -299,8 +290,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Event application service, persistence, ingestion route, audit/metrics hooks.
 
 **Tests:** Same event twice, concurrent duplicates, duplicate success, duplicate failure, replay, failed-first-processing retry, and no double-counting.
-
-**Documentation Deliverables:** Update `docs/EVENT_MODEL.md`; update `DATA_MODEL.md` only if implementation changes constraints.
 
 **Sprint Exit Criteria:** Duplicate webhook and duplicate event scenarios are proven safe under sequential and concurrent tests.
 
@@ -331,8 +320,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Multiple payment attempts, new order, repeated checkout event, new billing cycle, invoice uniqueness, concurrent case creation, and incident association without financial duplication.
 
-**Documentation Deliverables:** Create `docs/STATE_MACHINE.md` with case identity/lifecycle contract; update `docs/EVENT_MODEL.md` with event-to-case mapping.
-
 **Sprint Exit Criteria:** Every supported source maps to one obligation/case identity; concurrent duplicate creation yields one case.
 
 ### Sprint 3.2 — State machine and lifecycle service
@@ -355,8 +342,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Domain state machine, application lifecycle service, audit, persistence.
 
 **Tests:** Every legal matrix transition, illegal transition, terminal action rejection, success from each open state, opt-out, cancellation, exhaustion, and audit atomicity.
-
-**Documentation Deliverables:** Update `docs/STATE_MACHINE.md`; do not duplicate the full product rationale from PRD.
 
 **Sprint Exit Criteria:** State transitions are explicit, tested, auditable, and impossible actions are rejected.
 
@@ -383,8 +368,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Known failure codes, conflicting evidence, missing data, active incident, unknown code, and versioned explanation.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md` only for confirmed module interfaces; phase-specific AI docs are not yet needed.
-
 **Sprint Exit Criteria:** Diagnosis is deterministic, explainable, versioned, and covered by fixtures.
 
 ### Sprint 4.2 — Recovery probability, expected value, and priority
@@ -407,8 +390,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Scoring modules, config, case analysis service, persistence.
 
 **Tests:** Probability ranges, missing features, clamping, amount/probability arithmetic, priority ordering, tie-breaks, cost/risk penalties, and no mutation of recovered totals.
-
-**Documentation Deliverables:** Update `DATA_MODEL.md` for score snapshots if needed; record coefficient decisions in `DECISIONS.md` only if material.
 
 **Sprint Exit Criteria:** Every eligible case receives a transparent versioned probability, expected value, and priority score from configuration.
 
@@ -435,8 +416,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Valid recommendation, unknown action, malformed parameters, unsupported tool, prompt/model metadata, timeout, provider error, tenant evidence isolation.
 
-**Documentation Deliverables:** Create `docs/AI_CONTRACT.md` with input/output schema, versions, safeguards, and provider failure contract.
-
 **Sprint Exit Criteria:** AI can return a validated registered recommendation or a typed failure without mutating financial state.
 
 ### Sprint 5.2 — Deterministic fallback and AI evaluation
@@ -457,8 +436,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** AI application service, deterministic fallback, evaluation fixtures, metrics.
 
 **Tests:** AI unavailable, malformed output, low confidence, unsafe recommendation, fallback policy path, and recommendation explanation.
-
-**Documentation Deliverables:** Update `docs/AI_CONTRACT.md` with evaluation and degradation behavior.
 
 **Sprint Exit Criteria:** AI failure never blocks safe workflow or bypasses policy; fallback and source are visible/auditable.
 
@@ -485,8 +462,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Valid/invalid values, timezone, probability/amount/duration validation, version activation, historical lookup, and tenant scope.
 
-**Documentation Deliverables:** Create `docs/POLICY_ENGINE.md` with schema, versioning, precedence, and decision contract.
-
 **Sprint Exit Criteria:** Every mutable policy value has a typed source; active and historical policy versions are reconstructable.
 
 ### Sprint 6.2 — Policy evaluation, approvals, and stopping rules
@@ -507,8 +482,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Policy evaluator, approval application service, case/action lifecycle, audit.
 
 **Tests:** Each precedence branch, AI conflict, contact cap, interval, quiet hours, incident, approval, unavailable channel, terminal state, and policy version audit.
-
-**Documentation Deliverables:** Update `docs/POLICY_ENGINE.md` with test matrix and integration contract.
 
 **Sprint Exit Criteria:** No action executes unless the policy result allows it or an authorized approval path resolves it.
 
@@ -535,8 +508,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Duplicate job creation, concurrent claim, lease expiry, cancellation, retry timing, retry limit, dead-letter transition.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md`/`DATA_MODEL.md` for confirmed lease details; no separate job document required yet.
-
 **Sprint Exit Criteria:** Jobs are durable, uniquely identifiable, claimable once, cancellable, and recoverable after lease expiry.
 
 ### Sprint 7.2 — Worker execution and startup reconciliation
@@ -557,8 +528,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Worker runtime, job handlers, application recheck service, observability.
 
 **Tests:** Worker restart, expired lease, stale job, payment race, policy change, opt-out, provider retry, duplicate worker execution, graceful shutdown.
-
-**Documentation Deliverables:** Update `ARCHITECTURE.md`; document operational worker behavior later in `RUNBOOK.md` when Phase 17 begins.
 
 **Sprint Exit Criteria:** A due action is executed at most once per idempotency key and is cancelled when a preflight guard fails.
 
@@ -586,8 +555,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Provider success/failure/rate-limit, adapter timeout, delivery status, health, idempotency, and simulator/provider contract parity.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md` integration matrix and real/simulated labels; update `docs/EVENT_MODEL.md` provider mappings.
-
 **Sprint Exit Criteria:** Every external effect is adapter-mediated, typed, observable, and safely simulated in tests.
 
 ### Sprint 8.2 — Seeded simulator and scenario controls
@@ -608,8 +575,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Simulator module, scripts, fixtures, config, provider fakes.
 
 **Tests:** Same seed produces same input sequence; output totals derive from persisted events/cases/actions; duplicate and failure scenarios are included.
-
-**Documentation Deliverables:** Update `ARCHITECTURE.md` simulator posture and `DATA_MODEL.md` only for fixture persistence; `DEMO.md` waits until Phase 18.
 
 **Sprint Exit Criteria:** A seeded batch can exercise the workflow end-to-end without hardcoded totals or fake success counters.
 
@@ -637,8 +602,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Success after failure, duplicate success, success across open states, wrong obligation, partial/duplicate amount, refund, reversal, correction flow.
 
-**Documentation Deliverables:** Update `DATA_MODEL.md`; update `docs/EVENT_MODEL.md` and `docs/STATE_MACHINE.md`.
-
 **Sprint Exit Criteria:** Message delivery/clicks/recommendations never create recovered revenue; provider success does, once.
 
 ### Sprint 9.2 — Last-moment race and concurrency hardening
@@ -659,8 +622,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Worker/action/reconciliation services, persistence locking, test harness.
 
 **Tests:** Payment before worker, during preflight, during provider call, duplicate action retry, opt-out race, stale policy, concurrent success events.
-
-**Documentation Deliverables:** Update `docs/STATE_MACHINE.md` and `ARCHITECTURE.md` with confirmed race-handling behavior.
 
 **Sprint Exit Criteria:** Mandatory payment-race and duplicate-action scenarios pass deterministically.
 
@@ -687,8 +648,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Below threshold, above threshold, correlated dimensions, unrelated failures, incident open/resolved/cooldown, noisy/flapping signals.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md` and `DATA_MODEL.md` with confirmed query/index behavior.
-
 **Sprint Exit Criteria:** Detector is configurable, versioned, explainable, and incident totals never enter financial totals.
 
 ### Sprint 10.2 — Case association and outreach suppression
@@ -709,8 +668,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Incident/policy/case/job services, audit, metrics.
 
 **Tests:** Incident suppression, scheduled cancellation, new case during incident, resolution recovery, no mass outreach, visible timeline.
-
-**Documentation Deliverables:** Update `ARCHITECTURE.md`; add incident handling to future `RUNBOOK.md` in Phase 17.
 
 **Sprint Exit Criteria:** The degradation demo proves restraint and targeted post-incident recovery.
 
@@ -737,8 +694,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Control/treatment assignment, natural recovery, assisted recovery, outside window, multiple actions, duplicate success, refund/reversal, suppressed case.
 
-**Documentation Deliverables:** Create `docs/ATTRIBUTION.md` with definitions, ordering, windows, limitations, and examples.
-
 **Sprint Exit Criteria:** Each eligible case has one reconstructable case-level attribution result and explicit limitations.
 
 ### Sprint 11.2 — Recovery metrics and read models
@@ -759,8 +714,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Metrics/read-model services, repositories, API serializers.
 
 **Tests:** Seeded expected aggregation, duplicate resistance, cost/net calculation, empty data, partial data, refresh/freshness.
-
-**Documentation Deliverables:** Update `docs/ATTRIBUTION.md`; update `DATA_MODEL.md` if read models/materialized views are introduced.
 
 **Sprint Exit Criteria:** Metrics are derived from case/payment/action/attribution facts and reconcile to source totals.
 
@@ -787,8 +740,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** API validation, response schema, authorization seam, pagination, filters, safe errors, OpenAPI generation, contract compatibility.
 
-**Documentation Deliverables:** Create `docs/API_SPEC.md` with endpoints, auth assumptions, errors, pagination, freshness, and versioning.
-
 **Sprint Exit Criteria:** Web/test clients can consume typed API contracts without embedding domain logic or provider details.
 
 ### Sprint 12.2 — Webhooks, simulator controls, and operational endpoints
@@ -809,8 +760,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** API routes/dependencies, simulator/application services, health checks.
 
 **Tests:** Signature rejection, duplicate webhook, unauthorized simulator/action, stale worker, dependency degraded, case not found, safe error payload.
-
-**Documentation Deliverables:** Update `docs/API_SPEC.md`; update `ARCHITECTURE.md` for endpoint/runtime wiring.
 
 **Sprint Exit Criteria:** All mutation endpoints enforce application rules and expose useful operational state.
 
@@ -839,8 +788,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Component accessibility, keyboard/focus, responsive smoke, formatter unit tests, loading/empty/error rendering.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md` if UI package boundaries change; do not create a UI-specific document yet.
-
 **Sprint Exit Criteria:** Reusable UI exists only in `packages/ui/src`; shell is responsive and consumes the typed API boundary.
 
 ### Sprint 13.2 — Dashboard, cases, incident, and policy views
@@ -862,8 +809,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** `apps/web` route composition/features; `packages/ui/src` reusable additions.
 
 **Tests:** Route rendering, API loading/error/degraded states, permission presentation, case timeline, policy conflict display, dashboard metric formatting, E2E navigation.
-
-**Documentation Deliverables:** Update `ARCHITECTURE.md` only for confirmed frontend boundaries; update `API_SPEC.md` for response gaps.
 
 **Sprint Exit Criteria:** A merchant can answer the five dashboard questions and inspect a complete case/incident decision trail.
 
@@ -890,8 +835,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Missing/expired/invalid token, role matrix, Admin-only mutation, Viewer denial, Operator allowed operation, audit actor identity.
 
-**Documentation Deliverables:** Update `ARCHITECTURE.md`; security-specific detail waits for `docs/SECURITY.md` in Phase 15.
-
 **Sprint Exit Criteria:** Every protected API path enforces validated role and merchant scope; UI hiding is not the only control.
 
 ### Sprint 14.2 — Tenant isolation verification
@@ -912,8 +855,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** All API application/repository query boundaries, auth tests, web data loaders.
 
 **Tests:** Cross-tenant case/event/customer/job/policy/audit access attempts; ID collision; cross-tenant action; metric isolation.
-
-**Documentation Deliverables:** Record confirmed controls in `docs/SECURITY.md` when created in Phase 15.
 
 **Sprint Exit Criteria:** Isolation tests pass for every tenant-owned aggregate and no endpoint derives scope from untrusted body data.
 
@@ -941,8 +882,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Rate limits, invalid signature no mutation, secret non-leakage, PII redaction, audit completeness, unauthorized operations, dependency check.
 
-**Documentation Deliverables:** Create `docs/SECURITY.md` with controls, threat assumptions, retention, rotation, and AI security.
-
 **Sprint Exit Criteria:** Security controls are enforced and tested; audit can reconstruct every material financial/policy/action event.
 
 ### Sprint 15.2 — Structured observability and health
@@ -964,8 +903,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Logging/metrics/health/tracing modules, API/worker/adapters, dashboard health data.
 
 **Tests:** Correlation propagation, redaction, health state, metric increments, worker absence, provider outage, AI fallback spike, trace disabled/enabled.
-
-**Documentation Deliverables:** Create `docs/OBSERVABILITY.md`; update `ARCHITECTURE.md` with confirmed runtime telemetry.
 
 **Sprint Exit Criteria:** An operator can distinguish healthy, degraded, unavailable, stale, and failed subsystems with correlation IDs.
 
@@ -993,8 +930,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** All mandatory scenarios listed in Section 12 of this plan, including concurrent case creation and worker/payment races.
 
-**Documentation Deliverables:** Create `docs/TESTING_STRATEGY.md` with test layers, fixtures, environments, and required scenarios.
-
 **Sprint Exit Criteria:** Required test matrix runs reproducibly in CI; failures identify the owning module and correlation context.
 
 ### Sprint 16.2 — Resilience, replay, and failure injection
@@ -1015,8 +950,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Failure test harness, adapters, worker, API/frontend error states, observability.
 
 **Tests:** Invalid AI output, provider outage, database unavailable, worker restart, dead-letter replay, stale recommendation, payment verification unavailable, partial dashboard.
-
-**Documentation Deliverables:** Update `docs/TESTING_STRATEGY.md`; begin `docs/RUNBOOK.md` only when operational procedures are concrete in Phase 17.
 
 **Sprint Exit Criteria:** Failure scenarios are deterministic, safe, observable, and recoverable according to policy.
 
@@ -1044,8 +977,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Full vertical slice, payment race, duplicate webhook, duplicate action, AI fallback, policy conflict, natural/assisted outcome.
 
-**Documentation Deliverables:** Update all owning phase documents; create `docs/RUNBOOK.md` with the now-real workflow and failure procedures.
-
 **Sprint Exit Criteria:** The exact PRD first vertical slice passes from a clean environment without manual database edits or fixed dashboard totals.
 
 ### Sprint 17.2 — Batch integration and operational workflow
@@ -1067,11 +998,9 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Batch invariants, cross-source identity, incident totals, metric reconciliation, operator permission/error states.
 
-**Documentation Deliverables:** Update `docs/RUNBOOK.md`, `docs/ATTRIBUTION.md`, `docs/OBSERVABILITY.md`, and `docs/API_SPEC.md` with verified behavior.
-
 **Sprint Exit Criteria:** The full batch is reproducible and produces derived, labeled metrics with no critical discrepancy.
 
-**Phase 17 Exit Criteria:** End-to-end MVP workflow, batch processing, operational recovery, and documentation are integrated.
+**Phase 17 Exit Criteria:** End-to-end MVP workflow, batch processing, and operational recovery are integrated.
 
 ## Phase 18 — Final MVP Validation & Buildathon Demo
 
@@ -1094,8 +1023,6 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 **Files / Modules Affected:** Release configuration, CI/deployment scripts, all relevant modules.
 
 **Tests:** Full test suite, smoke tests, security checks, performance targets, restart/recovery, and seeded metric reconciliation.
-
-**Documentation Deliverables:** Update `README.md` for developer onboarding; update `docs/SECURITY.md`, `docs/TESTING_STRATEGY.md`, `docs/OBSERVABILITY.md`, and `docs/RUNBOOK.md` with final commands/behavior.
 
 **Sprint Exit Criteria:** Clean environment passes all required checks; no unresolved critical issue; release configuration is reproducible and documented.
 
@@ -1120,11 +1047,9 @@ Do not create multiple decision files. `DECISIONS.md` remains the single decisio
 
 **Tests:** Full demo rehearsal from clean state; reset/re-run same seed; verify expected relationships rather than fixed totals.
 
-**Documentation Deliverables:** Create `docs/DEMO.md` with setup, seed/configuration, sequence, scenarios, labels, and troubleshooting.
-
 **Sprint Exit Criteria:** Five-minute demo completes without manual data edits, shows measurable derived recovery, and handles at least one failure/race scenario visibly.
 
-**Phase 18 Exit Criteria:** MVP acceptance, release hardening, reproducibility, documentation, and Buildathon demo are complete.
+**Phase 18 Exit Criteria:** MVP acceptance, release hardening, reproducibility, and Buildathon demo are complete.
 
 ## 9. Global dependencies
 
@@ -1274,16 +1199,16 @@ Each item maps to PRD requirements and must have an implementation/test path bef
 For each phase and sprint, the coding agent MUST:
 
 1. Read `PRD.md`.
-2. Read the relevant sections of `ARCHITECTURE.md`, `DATA_MODEL.md`, `DECISIONS.md`, and any phase-specific document already created.
+2. Read the relevant sections of `ARCHITECTURE.md`, `DATA_MODEL.md`, and `DECISIONS.md`, plus any existing implementation contract that is already present.
 3. Inspect the current implementation, Git status, and existing tests.
 4. Confirm the sprint prerequisites and identify the next unchecked task.
 5. Implement only the sprint scope.
 6. Add/update unit, integration, API, worker, frontend, E2E, concurrency, or failure tests as relevant.
 7. Run the relevant lint, typecheck, build, migration, and test checks.
-8. Update the owning documentation and create phase-specific documentation only at the lifecycle point defined in Section 5.
+8. Update an existing source document only if implementation materially changes its owned behavior or contract; do not create phase-specific documentation as a sprint requirement.
 9. Verify every sprint exit criterion.
 10. Commit the coherent sprint change and push it to `origin/main`.
-11. Proceed only when tests, documentation, and exit criteria pass.
+11. Proceed only when implementation, tests, integration, E2E validation, and exit criteria pass.
 
 After all sprints in a phase, the agent MUST run phase-level tests, review PRD/architecture/data/decision consistency, record unresolved issues, and only then begin the next phase. Code compiling is never sufficient completion evidence.
 
@@ -1308,8 +1233,9 @@ Before implementation starts, confirm:
 - [ ] Recovery Case identity and existing state machine are preserved.
 - [ ] No phase introduces Redis/microservices without a decision update.
 - [ ] Financial truth is never sourced from AI, messaging, simulator counters, or duplicate events.
-- [ ] All sprints contain objective prerequisites, tasks, tests, documentation, and exit criteria.
-- [ ] Documentation is created progressively and not pre-created in bulk.
+- [ ] All sprints contain objective prerequisites, tasks, tests, E2E validation expectations, and exit criteria.
+- [ ] No sprint or phase requires creation of additional Markdown files.
+- [ ] Existing source documents are updated only when a material change requires it.
 - [ ] The first vertical slice is executable before secondary breadth is treated as complete.
 - [ ] Global dependencies and safe parallel work are explicit.
 - [ ] Critical path and risk validation are explicit.

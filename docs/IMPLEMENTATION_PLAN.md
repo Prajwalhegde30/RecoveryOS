@@ -24,7 +24,7 @@ Before every sprint, read the relevant source documents:
 - `DECISIONS.md` — rationale, alternatives, trade-offs, and status of major technical decisions.
 - `IMPLEMENTATION_PLAN.md` — current sprint, dependencies, tasks, tests, integration gates, and exit criteria.
 
-The repository is currently missing all implementation artifacts. Existing correct documentation is not a future coding task; it is a prerequisite and review contract.
+The repository began without implementation artifacts. The Phase 0 baseline is now implemented; existing correct documentation remains a prerequisite and review contract for later phases.
 
 ## 3. Current repository state
 
@@ -36,17 +36,19 @@ The repository is currently missing all implementation artifacts. Existing corre
 - `docs/DATA_MODEL.md` — proposed entities, constraints, indexes, migrations, and duplicate-prevention rules.
 - `docs/DECISIONS.md` — single decision record with proposed baseline choices.
 - Git repository on `main`, remote configured as the RecoveryOS GitHub repository.
+- Root pnpm workspace and Turborepo task graph.
+- `apps/web` Next.js TypeScript shell, `apps/api` FastAPI health boundary, and `packages/ui` shared UI package.
+- Husky pre-commit quality hook, Prettier, ESLint, Ruff, mypy, Vitest, pytest, CI workflow, and smoke E2E script.
 
 ### Missing
 
-- Monorepo/package manifests and lockfile.
-- `apps/web`, `apps/api`, `packages/ui`, scripts, CI/CD, Docker/Compose, and environment templates.
+- Database schema/migrations, Docker/Compose, and product workflow modules.
 - Database schema/migrations, repositories, API, workers, adapters, simulator, frontend, auth, tests, metrics, and deployment.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
 ### Working assumption
 
-The repository is greenfield unless a future sprint discovers otherwise. Discovery always takes precedence over this assumption. No existing implementation may be deleted or restructured without inspection and a documented decision.
+The repository began greenfield and now contains the Phase 0 baseline. Discovery always takes precedence over this assumption. No existing implementation may be deleted or restructured without inspection and a documented decision.
 
 ## 4. Implementation principles
 
@@ -146,7 +148,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 0 — Foundation & Repository Baseline
 
-### Sprint 0.1 — Repository bootstrap
+### Sprint 0.1 — Repository bootstrap — COMPLETE
 
 **Sprint Objective:** Create the approved pnpm/Turborepo workspace without implementing product behavior.
 
@@ -156,13 +158,13 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Create root workspace manifests and Turborepo task configuration.
-  - [ ] Add `apps/web`, `apps/api`, `packages/ui`, and scripts workspace boundaries.
-  - [ ] Pin the package manager/runtime versions through repository configuration.
-  - [ ] Define `dev`, `build`, `lint`, `typecheck`, `test`, and validation task dependencies.
-- [ ] Create minimal app/package manifests with no unused dependencies.
-- [ ] Add repository ignore rules and `.env.example` placeholders without secrets.
-- [ ] Verify the root commands fail clearly when a required dependency/configuration is absent.
+- [x] Create root workspace manifests and Turborepo task configuration.
+  - [x] Add `apps/web`, `apps/api`, `packages/ui`, and scripts workspace boundaries.
+  - [x] Pin the package manager/runtime versions through repository configuration.
+  - [x] Define `dev`, `build`, `lint`, `typecheck`, `test`, and validation task dependencies.
+- [x] Create minimal app/package manifests with no unused dependencies.
+- [x] Add repository ignore rules and `.env.example` placeholders without secrets.
+- [x] Verify the root commands fail clearly when a required dependency/configuration is absent.
 
 **Files / Modules Affected:** Root workspace manifests, `turbo.json`, app/package scaffolds, `.env.example`, scripts.
 
@@ -170,7 +172,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Clean install succeeds from the lockfile; workspace tasks discover all packages; no product code or duplicate docs are introduced.
 
-### Sprint 0.2 — Standards and CI baseline
+### Sprint 0.2 — Standards and CI baseline — COMPLETE
 
 **Sprint Objective:** Establish repeatable quality gates before domain implementation.
 
@@ -180,12 +182,12 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Configure formatter, linter, TypeScript/Python type checks, and conventional commit expectations.
-- [ ] Add CI jobs for install, lint, typecheck, build, and test commands.
-  - [ ] Ensure CI uses the lockfile and does not depend on local credentials.
-  - [ ] Add changed-file or full Turborepo task execution as appropriate.
-- [ ] Add a UI architecture check that rejects reusable components under `apps/web/app/components`.
-- [ ] Add a configuration validation command and secret scan where tooling supports it.
+- [x] Configure formatter, linter, TypeScript/Python type checks, and conventional commit expectations.
+- [x] Add CI jobs for install, lint, typecheck, build, and test commands.
+  - [x] Ensure CI uses the lockfile and does not depend on local credentials.
+  - [x] Add changed-file or full Turborepo task execution as appropriate.
+- [x] Add a UI architecture check that rejects reusable components under `apps/web/app/components`.
+- [x] Add a configuration validation command and secret scan where tooling supports it.
 
 **Files / Modules Affected:** CI workflow, root scripts, lint/format/type configuration, validation scripts.
 
@@ -193,7 +195,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** CI blocks failed lint/typecheck/build/test; all gates pass on the clean baseline; commit/push workflow is documented.
 
-**Phase 0 Exit Criteria:** Repository is a reproducible monorepo with quality gates, validated configuration entrypoints, and no unapproved implementation shortcuts.
+**Phase 0 Exit Criteria:** COMPLETE — repository is a reproducible monorepo with quality gates, validated configuration entrypoints, smoke E2E coverage, and no unapproved implementation shortcuts.
 
 ## Phase 1 — Database & Persistence
 

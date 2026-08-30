@@ -1,10 +1,12 @@
 # RecoveryOS Architecture
 
-**Status:** Proposed baseline — architecture review pending  
+**Status:** Proposed baseline — Phase 0 repository scaffold implemented; architecture review pending
 **Owner:** RecoveryOS engineering  
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Decision record:** [DECISIONS.md](./DECISIONS.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)
+
+**Implementation status:** The repository baseline now contains the approved workspace/app/package boundaries, quality scripts, minimal web shell, API health surface, and smoke checks. RecoveryOS domain modules, persistence, workers, integrations, authentication, and dashboard workflows remain planned for later phases.
 
 ## 1. Purpose and architectural goals
 

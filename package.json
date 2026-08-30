@@ -1,0 +1,29 @@
+{
+  "name": "recoveryos",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "dev:api": "pnpm --filter @recoveryos/api dev",
+    "dev:web": "pnpm --filter @recoveryos/web dev",
+    "e2e:smoke": "node scripts/smoke-e2e.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check \"*.{json,yaml,yml}\" \"apps/web/**/*.{ts,tsx,mjs}\" \"packages/**/*.{ts,tsx,css}\" \"scripts/**/*.mjs\"",
+    "lint": "turbo run lint",
+    "prepare": "husky",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "validate": "node scripts/validate-repository.mjs"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^2.5.6",
+    "husky": "^9.1.7",
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.6"
+  }
+}

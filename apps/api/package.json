@@ -1,0 +1,12 @@
+{
+  "name": "@recoveryos/api",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "node ../../scripts/run-python.mjs -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "lint": "node ../../scripts/run-python.mjs -m ruff check app tests",
+    "test": "node ../../scripts/run-python.mjs -m pytest",
+    "typecheck": "node ../../scripts/run-python.mjs -m mypy app",
+    "build": "node ../../scripts/run-python.mjs -m compileall -q app"
+  }
+}

@@ -8,7 +8,7 @@
 
 RecoveryOS is a planned merchant operations platform for revenue recovery. It turns failed payments, checkout abandonment, recurring-payment failures, overdue invoices, and correlated payment degradation into prioritized Recovery Cases. It diagnoses likely causes, estimates recoverability, selects a bounded action, applies deterministic policy, executes or schedules work, reconciles payment truth, and measures natural versus assisted recovery.
 
-The repository currently contains the product and engineering documentation baseline only. The implementation stack and runtime shape are approved as a proposed architecture but application code has not yet been created.
+The repository contains the product/engineering documentation baseline and the implemented Phase 0 workspace scaffold. The implementation stack and runtime shape remain a proposed architecture, while the web shell, API health boundary, shared UI package, quality gates, and smoke checks are now available.
 
 ## Problem
 
@@ -42,14 +42,14 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for module boundaries, runtime flow, ad
 
 ## Repository structure
 
-The current repository contains documentation and `LICENSE`. The planned implementation structure is:
+The current repository contains documentation, the Phase 0 scaffold, and `LICENSE`. The implementation structure is:
 
 ```text
 apps/web/              Next.js merchant dashboard and route composition
 apps/api/              FastAPI API, domain, application, persistence, worker, adapters
 packages/ui/src/       Shared accessible components, tokens, global.css, utilities
 docs/                  Product, architecture, data, decisions, and implementation contracts
-scripts/               Seed, validation, and repository tooling
+scripts/               Seed, validation, smoke E2E, and repository tooling
 ```
 
 Reusable components must not be placed in `apps/web/app/components`. Business logic must not live in route handlers or UI components.
@@ -74,30 +74,32 @@ Additional implementation-contract documents should be created only when a later
 
 ## Prerequisites
 
-The planned development baseline requires:
+The Phase 0 development baseline requires:
 
 - Git;
-- Node.js and pnpm versions finalized in the architecture implementation step;
-- Python version finalized in the architecture implementation step;
+- Node.js 22.14.x and pnpm 11.19.x;
+- Python 3.12.x;
 - Docker/Compose for local PostgreSQL, unless the approved local runtime changes;
 - access to a PostgreSQL database for local/test/demo environments;
 - optional provider credentials only when a real/test adapter is enabled;
 - optional AI provider credentials only when an AI adapter is enabled.
 
-The current repository does not yet provide package manifests, lockfiles, runtime scripts, Docker files, or environment templates. Installation commands below are planned and must not be treated as currently available commands.
+The current repository provides package manifests, a lockfile, runtime scripts, an environment template, and quality tooling. Docker/Compose, database migrations, and product workflow commands remain planned.
 
 ## Installation and environment configuration
 
-Once Phase 0 is implemented, the expected onboarding shape is:
+The Phase 0 onboarding shape is:
 
-```text
-pnpm install
-copy .env.example .env.local
+```powershell
+pnpm install --frozen-lockfile
+Copy-Item .env.example .env
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e "apps/api[test]"
 ```
 
 The exact commands, package-manager version, and environment file names are implementation-defined in the approved architecture and README update. Never commit real values.
 
-Expected variable categories, names to be finalized during implementation, include:
+The current environment template defines these variable names; values remain local/configuration inputs:
 
 ```text
 APP_ENV
@@ -136,25 +138,35 @@ The current repository has no migration files or database runtime. Application s
 
 ## Running the system
 
-No runtime commands are currently available because implementation has not started. After Phase 0, README must document exact commands for:
+The Phase 0 runtime commands are:
 
 ```text
-pnpm dev             Start development runtimes
-pnpm dev:web         Start the web app, if provided
-pnpm dev:api         Start the API, if provided
-pnpm worker          Start the durable worker
-pnpm simulator       Run a seeded synthetic batch
-pnpm test            Run the relevant test suite
-pnpm build           Build deployable artifacts
+pnpm dev:web         Start the web shell
+pnpm dev:api         Start the API health boundary (activate .venv first)
+pnpm e2e:smoke       Verify running API and web processes
+pnpm test            Run the current workspace tests
+pnpm build           Build the current workspace artifacts
 ```
 
-The final command names must match the actual package scripts; this README must be updated when implementation begins.
+Worker, simulator, migrations, and product workflow commands will be added only when their implementation phases begin.
 
 ## Testing
 
 The project will require unit, integration, API, database, worker, provider-adapter, concurrency, AI-contract, resilience, and browser E2E tests. MVP scenarios include duplicate webhooks/events, concurrent case creation, payment-before/during-worker races, AI failure/malformed output, policy blocks, opt-out, incident suppression, worker restart/lease expiry, provider retry/exhaustion with terminal failure, safe replay, duplicate actions, refunds/reversals, unauthorized operations, tenant isolation, and money correctness. Dedicated dead-letter replay and experiment/control-treatment tests are optional Stretch coverage.
 
-Exact test commands are not currently available. They must be added to the README when the test framework is installed and must run in CI.
+Current checks are:
+
+```text
+pnpm validate
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm e2e:smoke       # requires API and web running
+```
+
+The API test/typecheck commands require the repository virtual environment to be active or its Python directory on PATH.
 
 ## Development workflow
 

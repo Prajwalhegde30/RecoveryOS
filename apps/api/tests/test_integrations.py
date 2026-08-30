@@ -5,6 +5,7 @@ import time
 import pytest
 
 from app.integrations.contracts import (
+    DeliveryResult,
     DeliveryStatus,
     MessageRequest,
     PaymentLinkRequest,
@@ -159,6 +160,7 @@ def test_simulated_providers_are_labeled_and_idempotent() -> None:
 
 def test_provider_action_executor_routes_registered_actions() -> None:
     payment = SimulatedPaymentProvider()
+    payment.set_status("merchant-1", "pay-1", PaymentStatus.FAILED)
     messaging = SimulatedMessagingProvider()
     executor = ProviderActionExecutor(
         payment=payment,
@@ -184,6 +186,37 @@ def test_provider_action_executor_rejects_missing_recipient_and_unregistered_act
         executor.execute(work_item("SEND_EMAIL", customer=None))
     with pytest.raises(ActionExecutionError, match="not supported"):
         executor.execute(work_item("NOTIFY_ACCOUNT_MANAGER"))
+
+
+def test_provider_action_executor_rechecks_payment_before_customer_effect() -> None:
+    class RecordingMessagingProvider(SimulatedMessagingProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.send_calls = 0
+
+        def send(self, request: MessageRequest) -> DeliveryResult:
+            self.send_calls += 1
+            return super().send(request)
+
+    payment = SimulatedPaymentProvider()
+    payment.set_status(
+        "merchant-1",
+        "pay-1",
+        PaymentStatus.SUCCEEDED,
+        amount_minor_units=249_900,
+        currency="INR",
+    )
+    messaging = RecordingMessagingProvider()
+    executor = ProviderActionExecutor(
+        payment=payment,
+        messaging=messaging,
+        merchant_id="merchant-1",
+    )
+
+    with pytest.raises(ActionExecutionError, match="no longer outstanding"):
+        executor.execute(work_item("SEND_EMAIL"))
+
+    assert messaging.send_calls == 0
 
 
 def test_provider_action_executor_maps_typed_provider_failure() -> None:

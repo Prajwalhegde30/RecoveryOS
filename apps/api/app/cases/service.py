@@ -61,12 +61,15 @@ class RecoveryCaseService:
                 )
                 if case is None:
                     customer = self._customer(event)
+                    initial_status = (
+                        "OPTED_OUT" if customer and customer.opted_out_at else "DETECTED"
+                    )
                     case = RecoveryCase(
                         merchant_id=event.merchant_id,
                         customer_id=customer.id if customer else None,
                         obligation_id=obligation.id,
                         source_type=event.event_type,
-                        status="DETECTED",
+                        status=initial_status,
                         attempt_count=0,
                         max_attempts_snapshot=self.max_attempts,
                         recovered_amount=0,
@@ -86,6 +89,7 @@ class RecoveryCaseService:
                             metadata_safe_json={
                                 "event_id": event.event_id,
                                 "provider": self.provider,
+                                "customer_opted_out": initial_status == "OPTED_OUT",
                             },
                             correlation_id=event.correlation_id or "generated",
                         )

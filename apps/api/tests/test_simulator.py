@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.persistence.base import Base
-from app.persistence.models import Recommendation, RecoveryCase, RevenueEvent
+from app.persistence.models import (
+    Obligation,
+    Recommendation,
+    RecoveryCase,
+    RecoveryCaseStatus,
+    RevenueEvent,
+)
 from app.scoring.economics import ScoringConfig
 from app.simulator.service import SimulatorConfig, SimulatorService
 
@@ -54,6 +60,15 @@ def test_seeded_simulator_uses_normal_paths_and_reports_persisted_facts() -> Non
         assert session.scalar(select(func.count()).select_from(RecoveryCase)) == 6
         assert session.scalar(select(func.count()).select_from(Recommendation)) == 6
         assert all(event.provider == "simulator" for event in session.scalars(select(RevenueEvent)))
+        recovered_cases = session.scalars(
+            select(RecoveryCase).where(RecoveryCase.status == RecoveryCaseStatus.RECOVERED)
+        ).all()
+        paid_obligations = session.scalars(
+            select(Obligation).where(Obligation.authoritative_status == "paid")
+        ).all()
+        assert len(recovered_cases) == result.success_event_count
+        assert len(paid_obligations) == result.success_event_count
+        assert all(case.recovered_amount > 0 for case in recovered_cases)
 
 
 def test_same_seed_reproduces_event_inputs_without_duplicate_domain_effects() -> None:

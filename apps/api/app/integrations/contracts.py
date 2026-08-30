@@ -17,6 +17,8 @@ class PaymentStatus(StrEnum):
     PENDING = "pending"
     FAILED = "failed"
     SUCCEEDED = "succeeded"
+    REFUNDED = "refunded"
+    REVERSED = "reversed"
 
 
 class DeliveryStatus(StrEnum):

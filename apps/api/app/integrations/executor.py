@@ -5,6 +5,7 @@ from app.integrations.contracts import (
     MessagingProvider,
     PaymentLinkRequest,
     PaymentProvider,
+    PaymentStatus,
 )
 from app.integrations.errors import ProviderError
 from app.workers.contracts import (
@@ -52,6 +53,7 @@ class ProviderActionExecutor(ActionExecutor):
                         "payment link context is unavailable",
                         retryable=False,
                     )
+                self._ensure_payment_outstanding(work)
                 link_result = self.payment.create_retry_link(
                     PaymentLinkRequest(
                         merchant_id=self.merchant_id,
@@ -70,6 +72,7 @@ class ProviderActionExecutor(ActionExecutor):
                         "customer contact is unavailable",
                         retryable=False,
                     )
+                self._ensure_payment_outstanding(work)
                 message_result = self.messaging.send(
                     MessageRequest(
                         merchant_id=self.merchant_id,
@@ -95,3 +98,33 @@ class ProviderActionExecutor(ActionExecutor):
             raise ActionExecutionError(
                 exc.category, exc.safe_message, retryable=exc.retryable
             ) from exc
+
+    def _ensure_payment_outstanding(self, work: WorkItem) -> None:
+        """Perform an adapter-level check immediately before an external effect."""
+        if work.payment_id is None:
+            return
+        try:
+            snapshot = self.payment.get_payment_status(self.merchant_id, work.payment_id)
+        except ProviderError as exc:
+            raise ActionExecutionError(
+                exc.category,
+                exc.safe_message,
+                retryable=exc.retryable,
+            ) from exc
+        if snapshot.status == PaymentStatus.FAILED:
+            return
+        if snapshot.status in {
+            PaymentStatus.SUCCEEDED,
+            PaymentStatus.REFUNDED,
+            PaymentStatus.REVERSED,
+        }:
+            raise ActionExecutionError(
+                "payment_verified",
+                "payment is no longer outstanding",
+                retryable=False,
+            )
+        raise ActionExecutionError(
+            "payment_status_unavailable",
+            "payment status is not final",
+            retryable=True,
+        )

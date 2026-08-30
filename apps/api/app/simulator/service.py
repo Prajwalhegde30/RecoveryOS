@@ -10,16 +10,22 @@ from sqlalchemy.orm import Session
 from app.ai.service import AIRecommendationService
 from app.cases.identity import RECOVERABLE_EVENT_TYPES
 from app.cases.service import RecoveryCaseService
+from app.cases.state_machine import is_open
+from app.customers.service import CustomerOptOutService
 from app.events.contracts import EventIngestionResult, RevenueEvent, RevenueEventType
 from app.events.service import EventIngestionService
+from app.integrations.contracts import PaymentStatus
+from app.integrations.simulated import SimulatedPaymentProvider
 from app.persistence.models import (
     Merchant,
     Recommendation,
     RecoveryCase,
+    RecoveryCaseStatus,
 )
 from app.persistence.models import (
     RevenueEvent as RevenueEventRecord,
 )
+from app.reconciliation.service import PaymentReconciliationService
 from app.scoring.economics import ScoringConfig
 from app.scoring.service import CaseAnalysisService
 
@@ -110,6 +116,7 @@ class SimulatorService:
         self.session = session
         self.config = config
         self._random = random.Random(config.seed)
+        self._payment_provider = SimulatedPaymentProvider()
 
     def run(self) -> SimulatorRunResult:
         self._ensure_merchants()
@@ -130,7 +137,7 @@ class SimulatorService:
             event_ids.append(base_event.event_id)
             if result.duplicate:
                 duplicate_count += 1
-            if case is not None:
+            if case is not None and is_open(RecoveryCaseStatus(case.status)):
                 case_ids.add(case.id)
             if index in self.config.duplicate_event_indices:
                 duplicate_result, _ = self._process_event(ingester, cases, base_event)
@@ -204,7 +211,30 @@ class SimulatorService:
         self, ingester: EventIngestionService, event: RevenueEvent
     ) -> None:
         self.session.rollback()
-        ingester.ingest(event)
+        result = ingester.ingest(event)
+        if result.duplicate:
+            return
+        if event.event_type == RevenueEventType.CUSTOMER_OPTED_OUT:
+            CustomerOptOutService(self.session, event.merchant_id, self.provider_name).apply(event)
+            return
+        if event.event_type != RevenueEventType.PAYMENT_SUCCEEDED:
+            return
+        if event.payment_id is None or event.amount_minor_units is None or event.currency is None:
+            raise ValueError("simulated payment success requires payment identity and money")
+        self._payment_provider.set_status(
+            event.merchant_id,
+            event.payment_id,
+            PaymentStatus.SUCCEEDED,
+            amount_minor_units=event.amount_minor_units,
+            currency=event.currency,
+            provider_reference=f"sim_payment_{event.payment_id}",
+        )
+        PaymentReconciliationService(
+            self.session,
+            event.merchant_id,
+            self._payment_provider,
+            provider_name=self.provider_name,
+        ).reconcile(event)
 
     def _failure_event(self, index: int) -> RevenueEvent:
         merchant_id = self.config.merchant_ids[index % len(self.config.merchant_ids)]

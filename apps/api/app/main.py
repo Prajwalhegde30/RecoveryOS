@@ -4,10 +4,13 @@ from sqlalchemy.orm import Session
 from app.ai.service import AIRecommendationService
 from app.api.dependencies import get_db_session
 from app.cases.service import RecoveryCaseService
+from app.cases.state_machine import is_open
 from app.config import get_settings
-from app.events.contracts import EventIngestionResult, RevenueEvent
+from app.customers.service import CustomerOptOutService
+from app.events.contracts import EventIngestionResult, RevenueEvent, RevenueEventType
 from app.events.security import verify_signature
 from app.events.service import EventIngestionService
+from app.persistence.models import RecoveryCaseStatus
 from app.scoring.economics import ScoringConfig
 from app.scoring.service import CaseAnalysisService
 
@@ -49,8 +52,11 @@ async def receive_webhook(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid event payload"
         )
     result = EventIngestionService(session, provider).ingest(event)
+    if event.event_type == RevenueEventType.CUSTOMER_OPTED_OUT and not result.duplicate:
+        CustomerOptOutService(session, event.merchant_id, provider).apply(event)
+        return result
     case = RecoveryCaseService(session, provider, settings.max_recovery_attempts).associate(event)
-    if case is not None and not result.duplicate:
+    if case is not None and not result.duplicate and is_open(RecoveryCaseStatus(case.status)):
         case_id = case.id
         # Each application service owns a complete transaction; end any read transaction
         # opened while returning the case before starting analysis.

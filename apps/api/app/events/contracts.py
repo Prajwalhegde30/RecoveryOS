@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class RevenueEventType(StrEnum):
     PAYMENT_FAILED = "payment.failed"
     PAYMENT_SUCCEEDED = "payment.succeeded"
+    PAYMENT_REFUNDED = "payment.refunded"
+    PAYMENT_REVERSED = "payment.reversed"
     CHECKOUT_STARTED = "checkout.started"
     CHECKOUT_ABANDONED = "checkout.abandoned"
     SUBSCRIPTION_PAYMENT_FAILED = "subscription.payment_failed"

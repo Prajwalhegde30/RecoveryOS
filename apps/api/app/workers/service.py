@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.cases.state_machine import ActorType, validate_transition
+from app.integrations.contracts import PaymentProvider, PaymentStatus
+from app.integrations.errors import ProviderError
 from app.jobs.service import JobService
 from app.persistence.models import (
     AuditEvent,
@@ -43,6 +45,105 @@ class DefaultPreflightChecker:
         }:
             return PreflightResult(False, "TERMINAL_CASE")
         return PreflightResult(True, "PREFLIGHT_PASSED")
+
+
+class ProviderPreflightChecker:
+    """Conservatively verifies case, customer, obligation, and payment state."""
+
+    def __init__(self, session: Session, merchant_id: str, payment: PaymentProvider) -> None:
+        self.session = session
+        self.merchant_id = merchant_id
+        self.payment = payment
+
+    def check(self, work: WorkItem, *, now: datetime) -> PreflightResult:
+        del now
+        case = self.session.scalar(
+            select(RecoveryCase).where(
+                RecoveryCase.id == work.case_id,
+                RecoveryCase.merchant_id == self.merchant_id,
+            )
+        )
+        if case is None:
+            return PreflightResult(
+                False, "CASE_NOT_FOUND", safe_message="recovery case is unavailable"
+            )
+        if case.status in {
+            RecoveryCaseStatus.RECOVERED,
+            RecoveryCaseStatus.OPTED_OUT,
+            RecoveryCaseStatus.CANCELLED,
+            RecoveryCaseStatus.EXHAUSTED,
+        }:
+            return PreflightResult(
+                False,
+                "TERMINAL_CASE",
+                safe_message="recovery case is no longer actionable",
+            )
+        if case.incident_suppressed or case.status == RecoveryCaseStatus.SUPPRESSED:
+            return PreflightResult(
+                False,
+                "INCIDENT_SUPPRESSED",
+                safe_message="recovery action is suppressed during an incident",
+            )
+        if case.customer_id is not None:
+            customer = self.session.scalar(
+                select(Customer).where(
+                    Customer.id == case.customer_id,
+                    Customer.merchant_id == self.merchant_id,
+                )
+            )
+            if customer is None:
+                return PreflightResult(
+                    False, "CUSTOMER_NOT_FOUND", safe_message="customer contact is unavailable"
+                )
+            if customer.opted_out_at is not None:
+                return PreflightResult(
+                    False,
+                    "CUSTOMER_OPTED_OUT",
+                    safe_message="customer has opted out of recovery outreach",
+                )
+        obligation = self.session.scalar(
+            select(Obligation).where(
+                Obligation.id == case.obligation_id,
+                Obligation.merchant_id == self.merchant_id,
+            )
+        )
+        if obligation is None:
+            return PreflightResult(
+                False,
+                "OBLIGATION_NOT_FOUND",
+                safe_message="recoverable obligation is unavailable",
+            )
+        if obligation.authoritative_status in {"paid", "succeeded", "refunded", "reversed"}:
+            return PreflightResult(
+                False, "PAYMENT_VERIFIED", safe_message="payment is no longer outstanding"
+            )
+        if work.payment_id is None:
+            return PreflightResult(True, "PREFLIGHT_PASSED")
+        try:
+            snapshot = self.payment.get_payment_status(self.merchant_id, work.payment_id)
+        except ProviderError:
+            return PreflightResult(
+                False,
+                "PAYMENT_VERIFICATION_UNAVAILABLE",
+                retryable=True,
+                safe_message="payment verification unavailable; retry scheduled",
+            )
+        if snapshot.status == PaymentStatus.FAILED:
+            return PreflightResult(True, "PREFLIGHT_PASSED")
+        if snapshot.status in {
+            PaymentStatus.SUCCEEDED,
+            PaymentStatus.REFUNDED,
+            PaymentStatus.REVERSED,
+        }:
+            return PreflightResult(
+                False, "PAYMENT_VERIFIED", safe_message="payment is no longer outstanding"
+            )
+        return PreflightResult(
+            False,
+            "PAYMENT_STATUS_PENDING",
+            retryable=True,
+            safe_message="payment status is not final; recovery action will be retried",
+        )
 
 
 @dataclass(frozen=True)
@@ -83,22 +184,27 @@ class WorkerService:
             self.jobs.cancel(job_id, reason="job references missing action or case")
             return WorkerRunResult("cancelled", job_id, "MISSING_WORK")
         first_check = self.preflight.check(work, now=now)
+        self.session.rollback()
         if not first_check.allowed:
-            self.jobs.cancel(job_id, reason=f"preflight blocked: {first_check.reason_code}")
-            return WorkerRunResult("cancelled", job_id, first_check.reason_code)
+            return self._handle_preflight_block(job_id, first_check, now)
         if not self._reserve_execution(job_id, work):
             self.jobs.cancel(job_id, reason="job was no longer claimable")
             return WorkerRunResult("cancelled", job_id, "STALE_JOB")
         self.session.rollback()
         last_check = self.preflight.check(work, now=now)
+        self.session.rollback()
         if not last_check.allowed:
-            self.jobs.cancel(
-                job_id, reason=f"last-mile preflight blocked: {last_check.reason_code}"
-            )
-            return WorkerRunResult("cancelled", job_id, last_check.reason_code)
+            return self._handle_preflight_block(job_id, last_check, now)
         try:
             result = self.executor.execute(work)
         except ActionExecutionError as exc:
+            if exc.category in {
+                "payment_verified",
+                "payment_not_outstanding",
+                "customer_opted_out",
+            }:
+                self.jobs.cancel(job_id, reason=exc.safe_message)
+                return WorkerRunResult("cancelled", job_id, exc.category)
             job = self.jobs.retry_or_fail(
                 job_id,
                 now=now,
@@ -124,6 +230,7 @@ class WorkerService:
                 job_id,
                 "worker_unexpected_error",
             )
+        self.session.rollback()
         self.jobs.complete(
             job_id,
             provider_reference=result.provider_reference,
@@ -131,6 +238,25 @@ class WorkerService:
         )
         self._mark_case_executed(work.case_id)
         return WorkerRunResult("succeeded", job_id)
+
+    def _handle_preflight_block(
+        self, job_id: str, result: PreflightResult, now: datetime
+    ) -> WorkerRunResult:
+        if result.retryable:
+            job = self.jobs.retry_or_fail(
+                job_id,
+                now=now,
+                error_category=result.reason_code,
+                error_safe=result.safe_message,
+                retryable=True,
+            )
+            return WorkerRunResult(
+                "retry_scheduled" if job.status == JobStatus.PENDING else "failed",
+                job_id,
+                result.reason_code,
+            )
+        self.jobs.cancel(job_id, reason=result.safe_message)
+        return WorkerRunResult("cancelled", job_id, result.reason_code)
 
     def run(
         self,

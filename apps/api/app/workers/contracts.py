@@ -26,6 +26,8 @@ class WorkItem:
 class PreflightResult:
     allowed: bool
     reason_code: str
+    retryable: bool = False
+    safe_message: str = "recovery action preflight blocked"
 
 
 @dataclass(frozen=True)

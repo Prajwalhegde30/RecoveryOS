@@ -10,12 +10,18 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_db_session
 from app.config import get_settings
-from app.events.contracts import RevenueEvent
+from app.events.contracts import RevenueEvent, RevenueEventType
 from app.events.security import verify_signature
 from app.events.service import EventIngestionService
 from app.main import app
 from app.persistence.base import Base
-from app.persistence.models import ProcessedEvent, Recommendation, RecoveryCase
+from app.persistence.models import (
+    Customer,
+    ProcessedEvent,
+    Recommendation,
+    RecoveryCase,
+    RecoveryCaseStatus,
+)
 from app.persistence.models import RevenueEvent as RevenueEventRecord
 
 
@@ -156,3 +162,55 @@ def test_webhook_accepts_signed_event_with_injected_session() -> None:
         recommendations = session.scalars(select(Recommendation)).all()
         assert len(recommendations) == 1
         assert recommendations[0].source == "DETERMINISTIC_FALLBACK"
+
+
+def test_webhook_opt_out_blocks_later_case_analysis_and_outreach() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    def session_dependency():
+        with Session(engine) as session:
+            yield session
+
+    opt_out = event("evt-api-opt-out").model_copy(
+        update={
+            "event_type": RevenueEventType.CUSTOMER_OPTED_OUT,
+            "source_object_id": "preference-customer-1",
+            "external_obligation_id": None,
+            "obligation_type": None,
+            "customer_external_id": "customer-1",
+            "payment_id": None,
+            "amount_minor_units": None,
+            "currency": None,
+            "payment_method": None,
+            "failure_code": None,
+        }
+    )
+    failure = event("evt-api-after-opt-out").model_copy(
+        update={"customer_external_id": "customer-1"}
+    )
+    app.dependency_overrides[get_db_session] = session_dependency
+    get_settings().webhook_secret = "test-secret"
+    try:
+        for payload in (opt_out, failure):
+            raw = payload.model_dump_json().encode()
+            digest = hmac.new(b"test-secret", raw, hashlib.sha256).hexdigest()
+            response = TestClient(app).post(
+                "/webhooks/simulator",
+                content=raw,
+                headers={"X-Webhook-Signature": f"sha256={digest}"},
+            )
+            assert response.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+    with Session(engine) as session:
+        customer = session.scalar(select(Customer))
+        case = session.scalar(select(RecoveryCase))
+        assert customer is not None and customer.opted_out_at is not None
+        assert case is not None and case.status == RecoveryCaseStatus.OPTED_OUT
+        assert session.scalars(select(Recommendation)).all() == []

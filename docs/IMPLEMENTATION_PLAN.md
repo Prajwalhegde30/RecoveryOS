@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 8 complete; Phase 9 payment reconciliation and race safety are next
+**Current repository:** Phase 9 complete; Phase 10 incident detection and suppression are next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -48,11 +48,14 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
 - Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, terminal failure handling, and a provider-independent worker core with two-stage preflight and graceful shutdown.
 - SDK-neutral payment and messaging adapter contracts, typed provider failures/health, deterministic simulated payment/messaging providers, registered-action provider routing, and configurable AI adapter composition.
-- Seeded simulator event runner with configured inputs, reproducible event identities, duplicate/opt-out/incident/natural/assisted/high-value/provider-failure scenario controls, normal ingestion/case/scoring/fallback execution, synthetic labeling, and database-derived counts.
+- Seeded simulator event runner with configured inputs, reproducible event identities, duplicate/opt-out/incident/natural/assisted/high-value/provider-failure scenario controls, normal ingestion/case/scoring/fallback/reconciliation execution, synthetic labeling, and database-derived counts.
+- Provider-confirmed reconciliation for success, refund, and reversal events; exactly-once recovered amount handling; future-work cancellation; in-flight action audit handling; and safe provider-verification outcomes.
+- Server-side customer opt-out application that cancels future work, closes open cases, prevents analysis/recommendation for newly detected opted-out cases, and is enforced again in last-mile worker preflight.
+- Provider-aware two-stage worker preflight plus an adapter-level final payment check, with payment verification failures retried safely and no new effect attempted without a confirmed failed payment state.
 
 ### Missing
 
-- Authoritative reconciliation, incidents, attribution, frontend, auth, metrics, and deployment. External SDK/credential composition remains deployment-specific; the simulator currently generates and persists success/failure scenario events, while financial recovery effects remain Phase 9 responsibility.
+- Incident detection, attribution, frontend, auth, metrics, and deployment. External SDK/credential composition remains deployment-specific; the simulator's synthetic recovery scenarios now reconcile through the same provider-confirmed application service used by non-simulator integrations.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 
@@ -594,7 +597,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 9 — Payment Reconciliation & Race Conditions
 
-### Sprint 9.1 — Payment success reconciliation
+### Sprint 9.1 — Payment success reconciliation — COMPLETE
 
 **Sprint Objective:** Close cases only from authoritative success and cancel future work.
 
@@ -604,11 +607,11 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement success-event reconciliation against order/obligation/payment identity.
-- [ ] Mark case recovered exactly once with verified amount/currency.
-- [ ] Cancel all future jobs/actions for the case.
-- [ ] Record reconciliation and recovered amount audit events.
-- [ ] Add refund/reversal adjustment path without deleting original truth.
+- [x] Implement success-event reconciliation against order/obligation/payment identity.
+- [x] Mark case recovered exactly once with verified amount/currency.
+- [x] Cancel all future jobs/actions for the case.
+- [x] Record reconciliation and recovered amount audit events.
+- [x] Add refund/reversal adjustment path without deleting original truth.
 
 **Files / Modules Affected:** Reconciliation application service, payment adapter, case/action/job/attribution persistence.
 
@@ -616,7 +619,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Message delivery/clicks/recommendations never create recovered revenue; provider success does, once.
 
-### Sprint 9.2 — Last-moment race and concurrency hardening
+### Sprint 9.2 — Last-moment race and concurrency hardening — COMPLETE
 
 **Sprint Objective:** Prove no customer-facing action occurs after payment or opt-out wins the race.
 
@@ -626,10 +629,10 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement preflight recheck immediately before external effect.
-- [ ] Coordinate success event and worker through transaction/lock/idempotency strategy.
-- [ ] Define behavior when payment verification is temporarily unavailable: wait/retry/escalate, never contact blindly.
-- [ ] Add safe reconciliation for in-flight action/provider response ambiguity.
+- [x] Implement preflight recheck immediately before external effect.
+- [x] Coordinate success event and worker through transaction/lock/idempotency strategy.
+- [x] Define behavior when payment verification is temporarily unavailable: wait/retry/escalate, never contact blindly.
+- [x] Add safe reconciliation for in-flight action/provider response ambiguity.
 
 **Files / Modules Affected:** Worker/action/reconciliation services, persistence locking, test harness.
 
@@ -637,7 +640,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Mandatory payment-race and duplicate-action scenarios pass deterministically.
 
-**Phase 9 Exit Criteria:** Financial truth, reconciliation, refunds/reversals, cancellation, and concurrency are correct under adversarial ordering.
+**Phase 9 Exit Criteria:** COMPLETE — provider-confirmed payment truth, refunds/reversals, future-work cancellation, opt-out cancellation, duplicate protection, and provider/worker race safety are covered by unit, integration, and smoke E2E regression checks. Active external effects already reserved when a success/opt-out arrives are never silently erased: their result or safe retry state is retained under the original idempotency identity with an audit record.
 
 ## Phase 10 — Incident Detection & Suppression
 

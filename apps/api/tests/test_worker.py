@@ -5,10 +5,15 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.events.contracts import RevenueEvent, RevenueEventType
+from app.events.service import EventIngestionService
+from app.integrations.contracts import PaymentStatus
+from app.integrations.simulated import SimulatedPaymentProvider
 from app.jobs.service import JobConfig, JobService
 from app.persistence.base import Base
 from app.persistence.models import (
     Obligation,
+    PaymentAttempt,
     PolicyDecision,
     PolicyVersion,
     RecoveryAction,
@@ -16,13 +21,14 @@ from app.persistence.models import (
     RecoveryCaseStatus,
     ScheduledJob,
 )
+from app.reconciliation.service import PaymentReconciliationService
 from app.workers.contracts import (
     ActionExecutionError,
     ActionExecutionResult,
     PreflightResult,
     WorkItem,
 )
-from app.workers.service import WorkerService
+from app.workers.service import ProviderPreflightChecker, WorkerService
 
 
 class FakeExecutor:
@@ -265,3 +271,171 @@ def test_worker_restart_requeues_reserved_action_after_expired_lease() -> None:
         assert action is not None
         assert action.status == "SCHEDULED"
         assert action.failure_category == "worker_lease_expired"
+
+
+def test_provider_preflight_cancels_before_effect_when_payment_has_succeeded() -> None:
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        jobs, job_id = setup_job(session, "merchant_payment_race")
+        case = session.scalar(select(RecoveryCase))
+        assert case is not None
+        session.add(
+            PaymentAttempt(
+                merchant_id="merchant_payment_race",
+                recovery_case_id=case.id,
+                external_payment_id="pay-race",
+                payment_method="upi",
+                provider="simulator",
+                amount=10_000,
+                currency="INR",
+                status="failed",
+            )
+        )
+        session.commit()
+        payment = SimulatedPaymentProvider()
+        payment.set_status(
+            "merchant_payment_race",
+            "pay-race",
+            PaymentStatus.SUCCEEDED,
+            amount_minor_units=10_000,
+            currency="INR",
+        )
+        executor = FakeExecutor()
+        worker = WorkerService(
+            session,
+            "merchant_payment_race",
+            jobs,
+            executor,
+            ProviderPreflightChecker(session, "merchant_payment_race", payment),
+        )
+
+        result = worker.process_once(now=datetime(2026, 1, 1, 12, tzinfo=UTC))
+
+        assert result.status == "cancelled"
+        assert result.reason_code == "PAYMENT_VERIFIED"
+        assert executor.calls == []
+        session.rollback()
+        assert session.get(ScheduledJob, job_id).status == "CANCELLED"
+
+
+def test_provider_preflight_retries_when_payment_verification_is_unavailable() -> None:
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        jobs, job_id = setup_job(session, "merchant_payment_unavailable")
+        case = session.scalar(select(RecoveryCase))
+        assert case is not None
+        session.add(
+            PaymentAttempt(
+                merchant_id="merchant_payment_unavailable",
+                recovery_case_id=case.id,
+                external_payment_id="pay-unavailable",
+                payment_method="upi",
+                provider="simulator",
+                amount=10_000,
+                currency="INR",
+                status="failed",
+            )
+        )
+        session.commit()
+        payment = SimulatedPaymentProvider()
+        payment.available = False
+        worker = WorkerService(
+            session,
+            "merchant_payment_unavailable",
+            jobs,
+            FakeExecutor(),
+            ProviderPreflightChecker(session, "merchant_payment_unavailable", payment),
+        )
+
+        result = worker.process_once(now=datetime(2026, 1, 1, 12, tzinfo=UTC))
+
+        assert result.status == "retry_scheduled"
+        assert result.reason_code == "PAYMENT_VERIFICATION_UNAVAILABLE"
+        session.rollback()
+        job = session.get(ScheduledJob, job_id)
+        action = session.scalar(select(RecoveryAction))
+        assert job is not None and job.status == "PENDING"
+        assert action is not None and action.status == "SCHEDULED"
+
+
+def test_payment_success_during_provider_execution_preserves_one_auditable_outcome() -> None:
+    class PaymentRaceExecutor:
+        def __init__(self, session: Session, payment: SimulatedPaymentProvider) -> None:
+            self.session = session
+            self.payment = payment
+            self.calls = 0
+
+        def execute(self, work: WorkItem) -> ActionExecutionResult:
+            self.calls += 1
+            success = RevenueEvent(
+                event_id="evt-worker-provider-race",
+                event_type=RevenueEventType.PAYMENT_SUCCEEDED,
+                merchant_id="merchant_provider_race",
+                source_object_id="order-merchant_provider_race",
+                external_obligation_id="order-merchant_provider_race",
+                obligation_type="payment",
+                payment_id="pay-provider-race",
+                amount_minor_units=10_000,
+                currency="INR",
+                occurred_at=datetime(2026, 1, 1, 12, tzinfo=UTC),
+            )
+            EventIngestionService(self.session, "simulator").ingest(success)
+            self.payment.set_status(
+                "merchant_provider_race",
+                "pay-provider-race",
+                PaymentStatus.SUCCEEDED,
+                amount_minor_units=10_000,
+                currency="INR",
+            )
+            PaymentReconciliationService(
+                self.session,
+                "merchant_provider_race",
+                self.payment,
+                provider_name="simulator",
+            ).reconcile(success)
+            return ActionExecutionResult(provider_reference="message-in-flight", cost_minor_units=0)
+
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        jobs, job_id = setup_job(session, "merchant_provider_race")
+        case = session.scalar(select(RecoveryCase))
+        assert case is not None
+        session.add(
+            PaymentAttempt(
+                merchant_id="merchant_provider_race",
+                recovery_case_id=case.id,
+                external_payment_id="pay-provider-race",
+                payment_method="upi",
+                provider="simulator",
+                amount=10_000,
+                currency="INR",
+                status="failed",
+            )
+        )
+        session.commit()
+        payment = SimulatedPaymentProvider()
+        payment.set_status("merchant_provider_race", "pay-provider-race", PaymentStatus.FAILED)
+        executor = PaymentRaceExecutor(session, payment)
+        worker = WorkerService(
+            session,
+            "merchant_provider_race",
+            jobs,
+            executor,
+            ProviderPreflightChecker(session, "merchant_provider_race", payment),
+        )
+
+        result = worker.process_once(now=datetime(2026, 1, 1, 12, tzinfo=UTC))
+
+        assert result.status == "succeeded"
+        assert executor.calls == 1
+        session.rollback()
+        case = session.scalar(select(RecoveryCase))
+        job = session.get(ScheduledJob, job_id)
+        action = session.scalar(select(RecoveryAction))
+        assert case is not None and case.status == RecoveryCaseStatus.RECOVERED
+        assert case.recovered_amount == 10_000
+        assert job is not None and job.status == "COMPLETED"
+        assert action is not None and action.status == "SUCCEEDED"

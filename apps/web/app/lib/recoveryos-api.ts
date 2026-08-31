@@ -64,6 +64,7 @@ export type OperationalHealth = {
     { status: string; detail: string; pending_jobs?: number; stale_claims?: number }
   >;
 };
+export type OperationalMetrics = { merchant_id: string; metrics: Record<string, number> };
 export type CurrentPolicy = { version: number; status: string; policy: Record<string, unknown> };
 export type ApprovalQueueItem = {
   case_id: string;
@@ -109,6 +110,10 @@ export class RecoveryOsApiClient {
 
   operationalHealth(): Promise<OperationalHealth> {
     return this.get('/api/v1/health/operational');
+  }
+
+  operationalMetrics(): Promise<OperationalMetrics> {
+    return this.get('/api/v1/health/metrics');
   }
 
   currentPolicy(): Promise<CurrentPolicy> {

@@ -20,6 +20,7 @@ import {
   Dashboard,
   Incident,
   OperationalHealth,
+  OperationalMetrics,
   ApprovalQueueItem,
   RecoveryOsApiClient,
 } from './lib/recoveryos-api';
@@ -33,6 +34,7 @@ export function DashboardClient() {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [health, setHealth] = useState<OperationalHealth | null>(null);
+  const [operationalMetrics, setOperationalMetrics] = useState<OperationalMetrics | null>(null);
   const [policy, setPolicy] = useState<CurrentPolicy | null>(null);
   const [approvals, setApprovals] = useState<ApprovalQueueItem[] | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
@@ -65,12 +67,11 @@ export function DashboardClient() {
       setDashboard(dashboardResult);
       setCases(casesResult);
       setIncidents(incidentsResult);
-      const [healthResult, policyResult, approvalsResult] = await Promise.allSettled([
-        api.operationalHealth(),
-        api.currentPolicy(),
-        api.approvals(),
-      ]);
+      const [healthResult, metricsResult, policyResult, approvalsResult] = await Promise.allSettled(
+        [api.operationalHealth(), api.operationalMetrics(), api.currentPolicy(), api.approvals()],
+      );
       setHealth(healthResult.status === 'fulfilled' ? healthResult.value : null);
+      setOperationalMetrics(metricsResult.status === 'fulfilled' ? metricsResult.value : null);
       setPolicy(policyResult.status === 'fulfilled' ? policyResult.value : null);
       setApprovals(approvalsResult.status === 'fulfilled' ? approvalsResult.value : null);
     } catch (cause) {
@@ -292,6 +293,30 @@ export function DashboardClient() {
                     ? 'Approval visibility is unavailable for this role.'
                     : 'No pending approvals.'}
                 </EmptyState>
+              )}
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Workflow telemetry</CardTitle>
+                <Badge>{operationalMetrics ? 'Persisted' : 'Unavailable'}</Badge>
+              </CardHeader>
+              {operationalMetrics ? (
+                <div className="data-list">
+                  {Object.entries(operationalMetrics.metrics)
+                    .filter(([, value]) => value > 0)
+                    .slice(0, 8)
+                    .map(([name, value]) => (
+                      <div className="data-row" key={name}>
+                        <p>{name.replaceAll('_', ' ')}</p>
+                        <strong>{integer(value)}</strong>
+                      </div>
+                    ))}
+                  {!Object.values(operationalMetrics.metrics).some((value) => value > 0) ? (
+                    <EmptyState>No persisted workflow activity yet.</EmptyState>
+                  ) : null}
+                </div>
+              ) : (
+                <EmptyState>Workflow telemetry is unavailable.</EmptyState>
               )}
             </Card>
             <div className="content-grid">

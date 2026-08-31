@@ -28,6 +28,7 @@ from app.api.schemas import (
     DashboardResponse,
     IncidentResponse,
     OperationalHealthResponse,
+    OperationalMetricsResponse,
     SimulatorRunRequest,
     SimulatorRunResponse,
     TimelineResponse,
@@ -37,6 +38,7 @@ from app.auth.service import AuthContext
 from app.config import get_settings
 from app.integrations.simulated import SimulatedMessagingProvider, SimulatedPaymentProvider
 from app.jobs.service import JobConfig
+from app.observability.metrics import OperationalMetricsService
 from app.persistence.models import (
     AuditEvent,
     CaseIncident,
@@ -147,6 +149,19 @@ def operational_health(
                 status=messaging_health.status.value, detail=messaging_health.detail
             ),
         },
+    )
+
+
+@router.get("/health/metrics", response_model=OperationalMetricsResponse)
+def operational_metrics(
+    _operator: AuthContext = operator_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> OperationalMetricsResponse:
+    """Expose durable, tenant-scoped workflow counters for operators."""
+    return OperationalMetricsResponse(
+        merchant_id=merchant_id,
+        metrics=OperationalMetricsService(session, merchant_id).calculate(),
     )
 
 

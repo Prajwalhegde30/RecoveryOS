@@ -16,6 +16,7 @@ from app.events.service import EventIngestionService
 from app.main import app
 from app.persistence.base import Base
 from app.persistence.models import (
+    AuditEvent,
     Customer,
     Obligation,
     PaymentAttempt,
@@ -94,6 +95,16 @@ def test_event_ingestion_is_idempotent_and_persists_normalized_facts() -> None:
         replayed = service.replay("merchant_1", "evt_1")
         assert replayed.duplicate is True
         assert len(session.scalars(select(RevenueEventRecord)).all()) == 1
+        assert (
+            len(
+                session.scalars(
+                    select(AuditEvent).where(
+                        AuditEvent.event_type == "EVENT_DUPLICATE_RECEIVED"
+                    )
+                ).all()
+            )
+            == 2
+        )
 
 
 def test_failed_event_can_be_replayed_without_new_identity() -> None:

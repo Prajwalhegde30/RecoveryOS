@@ -38,6 +38,20 @@ describe('RecoveryOsApiClient', () => {
     );
   });
 
+  it('reads durable operational metrics through the typed boundary', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ merchant_id: 'merchant-1', metrics: {} }), { status: 200 }),
+      );
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+
+    await expect(client.operationalMetrics()).resolves.toEqual({
+      merchant_id: 'merchant-1',
+      metrics: {},
+    });
+  });
+
   it('posts approval decisions through the authenticated case boundary', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

@@ -935,7 +935,8 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [x] Implement correlated structured request logs and safe unhandled-error responses without exposing exception payloads; broader entity-level structured logging and PII redaction remain pending.
-- [ ] Implement webhook, case, policy, job, worker, provider, AI, incident, action, and recovery metrics.
+- [x] Implement a tenant-scoped operational metrics read model derived from persisted events, cases, recommendations, policy decisions, jobs, actions, incidents, and attribution records; duplicate-event counts use append-only duplicate-received audit facts.
+- [ ] Extend metrics with provider latency/error dimensions and deployment-backed alerting.
 - [ ] Implement liveness/readiness and dependency health states.
   - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.
 - [ ] Add error tracking hooks, stuck-job alerts, queue/backlog metrics, AI fallback metrics, and provider failure visibility.

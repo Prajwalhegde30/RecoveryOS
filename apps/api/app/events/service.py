@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.events.contracts import EventIngestionResult, RevenueEvent
-from app.persistence.models import ProcessedEvent
+from app.persistence.models import AuditEvent, ProcessedEvent
 from app.persistence.models import RevenueEvent as RevenueEventRecord
 
 
@@ -60,6 +60,19 @@ class EventIngestionService:
             existing_correlation_id = existing.correlation_id
             existing_result = existing.result
             self.session.rollback()
+            with self.session.begin():
+                self.session.add(
+                    AuditEvent(
+                        merchant_id=event.merchant_id,
+                        entity_type="revenue_event",
+                        entity_id=existing.id,
+                        event_type="EVENT_DUPLICATE_RECEIVED",
+                        actor_type="system",
+                        reason="duplicate external event ignored by idempotency boundary",
+                        metadata_safe_json={"provider": self.provider},
+                        correlation_id=existing_correlation_id,
+                    )
+                )
             return EventIngestionResult(
                 event_id=event.event_id,
                 status=existing_result,

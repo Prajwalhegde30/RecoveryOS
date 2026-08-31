@@ -87,6 +87,11 @@ class OperationalHealthResponse(BaseModel):
     components: dict[str, ComponentHealthResponse]
 
 
+class OperationalMetricsResponse(BaseModel):
+    merchant_id: str
+    metrics: dict[str, int]
+
+
 class CurrentPolicyResponse(BaseModel):
     version: int
     status: str

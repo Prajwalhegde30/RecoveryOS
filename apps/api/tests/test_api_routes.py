@@ -214,6 +214,10 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         operational = client.get("/api/v1/health/operational", headers=auth_headers())
         assert operational.status_code == 200
         assert operational.json()["components"]["database"]["status"] == "healthy"
+        operational_metrics = client.get("/api/v1/health/metrics", headers=auth_headers())
+        assert operational_metrics.status_code == 200
+        assert operational_metrics.json()["metrics"]["cases_total"] == 1
+        assert operational_metrics.json()["metrics"]["events_received"] == 0
         cases = client.get("/api/v1/cases", headers=auth_headers())
         assert cases.status_code == 200
         assert cases.json()[0]["amount_at_risk_minor_units"] == 2500
@@ -272,6 +276,7 @@ def test_generated_openapi_keeps_core_contract_paths() -> None:
     assert "/api/v1/cases/{case_id}/actions" in paths
     assert "/api/v1/cases/{case_id}/approvals" in paths
     assert "/api/v1/approvals" in paths
+    assert "/api/v1/health/metrics" in paths
     assert "/webhooks/{provider}" in paths
 
 

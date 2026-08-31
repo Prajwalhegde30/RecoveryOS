@@ -48,6 +48,7 @@ export function DashboardClient() {
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [caseStatus, setCaseStatus] = useState('');
   const [caseSource, setCaseSource] = useState('');
+  const [caseRootCause, setCaseRootCause] = useState('');
   const [sortByPriority, setSortByPriority] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export function DashboardClient() {
     try {
       const [dashboardResult, casesResult, incidentsResult] = await Promise.allSettled([
         api.dashboard(),
-        api.cases(caseStatus || undefined, caseSource || undefined),
+        api.cases(caseStatus || undefined, caseSource || undefined, caseRootCause || undefined),
         api.incidents(),
       ]);
       if (dashboardResult.status === 'rejected') {
@@ -111,7 +112,7 @@ export function DashboardClient() {
     } finally {
       setLoading(false);
     }
-  }, [api, caseSource, caseStatus]);
+  }, [api, caseRootCause, caseSource, caseStatus]);
 
   const loadCaseDetail = useCallback(
     async (caseId: string) => {
@@ -281,6 +282,25 @@ export function DashboardClient() {
                       <option value="checkout.abandoned">Checkout abandonment</option>
                       <option value="subscription.payment_failed">Subscription failure</option>
                       <option value="invoice.overdue">Overdue invoice</option>
+                    </select>
+                    <label className="sr-only" htmlFor="case-root-cause">
+                      Filter cases by root cause
+                    </label>
+                    <select
+                      id="case-root-cause"
+                      value={caseRootCause}
+                      onChange={(event) => setCaseRootCause(event.target.value)}
+                    >
+                      <option value="">All root causes</option>
+                      <option value="temporary_payment_failure">Temporary payment failure</option>
+                      <option value="issuing_bank_issue">Issuing bank issue</option>
+                      <option value="insufficient_funds">Insufficient funds</option>
+                      <option value="expired_card">Expired card</option>
+                      <option value="checkout_abandonment">Checkout abandonment</option>
+                      <option value="systemic_payment_degradation">
+                        Systemic payment degradation
+                      </option>
+                      <option value="unknown">Unknown</option>
                     </select>
                     <Button type="button" onClick={() => setSortByPriority((current) => !current)}>
                       {sortByPriority ? 'Priority order' : 'Newest order'}

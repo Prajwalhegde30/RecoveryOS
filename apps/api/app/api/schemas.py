@@ -14,6 +14,7 @@ class CaseSummaryResponse(BaseModel):
     id: str
     obligation_id: str
     source_type: str
+    root_cause: str | None
     status: str
     currency: str
     amount_at_risk_minor_units: int

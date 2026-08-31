@@ -51,6 +51,21 @@ describe('RecoveryOsApiClient', () => {
     );
   });
 
+  it('encodes root-cause filtering through the typed cases boundary', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+
+    await expect(client.cases(undefined, undefined, 'temporary_payment_failure')).resolves.toEqual(
+      [],
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://api.test/api/v1/cases?limit=50&root_cause=temporary_payment_failure',
+      expect.objectContaining({ headers: { Authorization: 'Bearer token' } }),
+    );
+  });
+
   it('reads durable operational metrics through the typed boundary', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

@@ -216,6 +216,10 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
     settings.auth_hmac_secret = "test-secret"
     client = TestClient(app)
     try:
+        case = session.get(RecoveryCase, "case-api")
+        assert case is not None
+        case.root_cause = "temporary_payment_failure"
+        session.commit()
         dashboard = client.get("/api/v1/dashboard", headers=auth_headers())
         assert dashboard.status_code == 200
         assert dashboard.json()["freshness"] == "live"
@@ -241,6 +245,13 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         assert client.get(
             "/api/v1/cases?source=invoice.overdue", headers=auth_headers()
         ).json() == []
+        root_cause_cases = client.get(
+            "/api/v1/cases?root_cause=temporary_payment_failure", headers=auth_headers()
+        )
+        assert root_cause_cases.status_code == 200
+        assert [item["root_cause"] for item in root_cause_cases.json()] == [
+            "temporary_payment_failure"
+        ]
         detail = client.get("/api/v1/cases/case-api", headers=auth_headers())
         assert detail.status_code == 200
         assert detail.json()["timeline"][0]["event_type"] == "CASE_CREATED"

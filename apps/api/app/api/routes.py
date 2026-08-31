@@ -258,6 +258,7 @@ def current_policy(
 def cases(
     status_filter: str | None = Query(default=None, alias="status"),
     source_filter: str | None = Query(default=None, alias="source"),
+    root_cause_filter: str | None = Query(default=None, alias="root_cause"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     merchant_id: str = merchant_scope_dependency,
@@ -278,6 +279,8 @@ def cases(
         statement = statement.where(RecoveryCase.status == status_filter)
     if source_filter is not None:
         statement = statement.where(RecoveryCase.source_type == source_filter)
+    if root_cause_filter is not None:
+        statement = statement.where(RecoveryCase.root_cause == root_cause_filter)
     return [_summary(case, obligation) for case, obligation in session.execute(statement).all()]
 
 
@@ -347,7 +350,6 @@ def case_detail(
     return CaseDetailResponse(
         **_summary(case, obligation).model_dump(),
         customer_id=case.customer_id,
-        root_cause=case.root_cause,
         root_cause_confidence=case.root_cause_confidence,
         recovery_probability=case.recovery_probability,
         recovery_attempt_count=case.attempt_count,
@@ -608,6 +610,7 @@ def _summary(case: RecoveryCase, obligation: Obligation) -> CaseSummaryResponse:
         id=case.id,
         obligation_id=case.obligation_id,
         source_type=case.source_type,
+        root_cause=case.root_cause,
         status=case.status,
         currency=case.currency,
         amount_at_risk_minor_units=obligation.amount_at_risk,

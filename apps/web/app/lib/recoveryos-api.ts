@@ -4,6 +4,7 @@ export type CaseSummary = {
   id: string;
   obligation_id: string;
   source_type: string;
+  root_cause: string | null;
   status: string;
   currency: string;
   amount_at_risk_minor_units: number;
@@ -110,10 +111,11 @@ export class RecoveryOsApiClient {
     return this.get('/api/v1/dashboard');
   }
 
-  cases(status?: string, source?: string): Promise<CaseSummary[]> {
+  cases(status?: string, source?: string, rootCause?: string): Promise<CaseSummary[]> {
     const query = new URLSearchParams({ limit: '50' });
     if (status) query.set('status', status);
     if (source) query.set('source', source);
+    if (rootCause) query.set('root_cause', rootCause);
     return this.get(`/api/v1/cases?${query.toString()}`);
   }
 

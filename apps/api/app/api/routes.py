@@ -18,6 +18,8 @@ from app.api.dependencies import (
 from app.api.schemas import (
     ActionCommandRequest,
     ActionCommandResponse,
+    ApprovalResolutionRequest,
+    ApprovalResolutionResponse,
     CaseDetailResponse,
     CaseSummaryResponse,
     ComponentHealthResponse,
@@ -47,6 +49,7 @@ from app.persistence.models import (
     ScheduledJob,
     WorkerHeartbeat,
 )
+from app.policy.decision_service import PolicyDecisionService
 from app.policy.service import PolicyService
 from app.simulator.lifecycle import SimulatorLifecycleResult, SimulatorLifecycleService
 from app.simulator.service import SimulatorConfig
@@ -354,6 +357,40 @@ def request_action(
         policy_decision_id=result.policy_decision_id,
         job_id=result.job_id,
         reason=result.reason,
+    )
+
+
+@router.post(
+    "/cases/{case_id}/approvals",
+    response_model=ApprovalResolutionResponse,
+)
+def resolve_approval(
+    case_id: str,
+    request: ApprovalResolutionRequest,
+    _admin: AuthContext = admin_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> ApprovalResolutionResponse:
+    session.rollback()
+    try:
+        decision = PolicyDecisionService(session, merchant_id).resolve_approval(
+            case_id,
+            request.policy_version_id,
+            approved=request.approved,
+            admin_id=_admin.subject,
+            reason=request.reason,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return ApprovalResolutionResponse(
+        decision_id=decision.id,
+        case_id=case_id,
+        status=decision.result,
+        reason=decision.reason,
     )
 
 

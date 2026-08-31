@@ -140,3 +140,16 @@ class ActionCommandResponse(BaseModel):
     policy_decision_id: str
     job_id: str | None
     reason: str
+
+
+class ApprovalResolutionRequest(BaseModel):
+    policy_version_id: str = Field(min_length=1, max_length=36)
+    approved: bool
+    reason: str = Field(min_length=1, max_length=512)
+
+
+class ApprovalResolutionResponse(BaseModel):
+    decision_id: str
+    case_id: str
+    status: str
+    reason: str

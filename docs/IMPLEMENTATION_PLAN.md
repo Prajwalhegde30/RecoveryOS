@@ -854,14 +854,15 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Enforce authenticated tenant scope on implemented read routes and Admin-only simulator start.
 - [x] Validate effective role from the tenant membership tables rather than trusting client role headers/claims.
 - [x] Add production JWKS/approved identity-provider verification with an asymmetric algorithm allow-list; production mode cannot silently fall back to local HMAC validation.
-- [ ] Complete authorization for manual retry, intervention, approval, policy, integrations, and audit operations.
+- [x] Add the implemented Admin-only approval-resolution API operation with merchant-scoped policy-version lookup, persisted decision, state transition, and audit record.
+- [ ] Complete authorization for future manual retry, intervention, policy, integrations, and audit operations as those API operations are introduced.
 - [x] Add effective-role context to the implemented privileged action-command audit record; future privileged operation records must follow the same contract.
 
 **Files / Modules Affected:** `apps/api/app/auth`, auth dependencies/configuration, membership queries, API routes, web auth header wiring.
 
 **Tests:** Missing/expired/invalid token, signature/issuer/audience validation, membership-backed role, Admin-only simulator route, cross-tenant denial, asymmetric JWKS validation, algorithm rejection, JWKS claim failures, no-JWKS-to-HMAC fallback, and effective-role audit context. Full operation role matrix remains pending.
 
-**Sprint Exit Criteria:** PARTIAL — every implemented versioned read path and simulator start route enforces validated identity and merchant membership, and both explicit local and JWKS validation paths are tested; complete mutation role coverage remains required before Phase 14 completion.
+**Sprint Exit Criteria:** PARTIAL — every implemented versioned read path and current mutation route enforces validated identity and merchant membership, including Admin-only approval resolution; future operation coverage and all-aggregate isolation verification remain required before Phase 14 completion.
 
 ### Sprint 14.2 — Tenant isolation verification
 

@@ -405,6 +405,28 @@ def test_action_command_requires_operator_role_and_persists_blocking_decision() 
         assert blocked.status_code == 200
         assert blocked.json()["status"] == "REQUIRES_APPROVAL"
         assert blocked.json()["job_id"] is None
+        policy_version_id = session.query(PolicyVersion).one().id
+        viewer_approval = client.post(
+            "/api/v1/cases/case-api/approvals",
+            json={
+                "policy_version_id": policy_version_id,
+                "approved": True,
+                "reason": "viewer must not approve",
+            },
+            headers=auth_headers_for("subject-viewer", role="VIEWER"),
+        )
+        assert viewer_approval.status_code == 403
+        approved = client.post(
+            "/api/v1/cases/case-api/approvals",
+            json={
+                "policy_version_id": policy_version_id,
+                "approved": True,
+                "reason": "approved by merchant administrator",
+            },
+            headers=auth_headers(),
+        )
+        assert approved.status_code == 200
+        assert approved.json()["status"] == "ALLOW"
     finally:
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret

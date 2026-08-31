@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.ai.contracts import ActionType
+from app.events.contracts import RevenueEventType
 from app.persistence.base import Base
 from app.persistence.models import (
     AttributionRecord,
@@ -155,6 +156,51 @@ def test_simulator_rejects_overlapping_or_out_of_range_scenarios() -> None:
         assert "within transaction_count" in str(exc)
     else:
         raise AssertionError("out-of-range scenarios must be rejected")
+
+    try:
+        SimulatorConfig(**base, event_types=(RevenueEventType.PAYMENT_FAILED,))
+    except ValueError as exc:
+        assert "one event type per transaction" in str(exc)
+    else:
+        raise AssertionError("event type vectors must match transaction_count")
+
+
+def test_simulator_runs_non_payment_revenue_event_types_through_normal_paths() -> None:
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    event_types = (
+        RevenueEventType.CHECKOUT_ABANDONED,
+        RevenueEventType.SUBSCRIPTION_PAYMENT_FAILED,
+        RevenueEventType.INVOICE_OVERDUE,
+        RevenueEventType.PAYMENT_FAILED,
+    )
+    config = SimulatorConfig(
+        seed=84,
+        merchant_ids=("merchant_sources",),
+        transaction_count=len(event_types),
+        amounts_minor_units=(1_000,),
+        payment_methods=("upi",),
+        failure_codes=("UPI_TIMEOUT",),
+        event_types=event_types,
+    )
+    with Session(engine) as session:
+        result = SimulatorService(session, config).run()
+        records = session.scalars(
+            select(RevenueEvent).where(RevenueEvent.merchant_id == "merchant_sources")
+        ).all()
+        assert result.case_count == len(event_types)
+        assert {
+            record.event_type
+            for record in records
+            if record.event_type in {event_type.value for event_type in event_types}
+        } == {event_type.value for event_type in event_types}
+        cases = session.scalars(select(RecoveryCase)).all()
+        assert {case.source_type for case in cases} == {
+            RevenueEventType.CHECKOUT_ABANDONED.value,
+            RevenueEventType.SUBSCRIPTION_PAYMENT_FAILED.value,
+            RevenueEventType.INVOICE_OVERDUE.value,
+            RevenueEventType.PAYMENT_FAILED.value,
+        }
 
 
 def test_simulator_failure_persists_only_safe_error_detail(monkeypatch) -> None:

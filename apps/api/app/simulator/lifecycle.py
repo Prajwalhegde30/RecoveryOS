@@ -185,6 +185,7 @@ def _config_snapshot(config: SimulatorConfig) -> dict[str, Any]:
     data["amounts_minor_units"] = list(config.amounts_minor_units)
     data["payment_methods"] = list(config.payment_methods)
     data["failure_codes"] = list(config.failure_codes)
+    data["event_types"] = [event_type.value for event_type in config.event_types]
     for key in (
         "high_value_indices",
         "duplicate_event_indices",

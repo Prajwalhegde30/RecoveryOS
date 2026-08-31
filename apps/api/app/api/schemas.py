@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.ai.contracts import ActionType
+from app.events.contracts import RevenueEventType
 from app.policy.schema import Channel
 
 
@@ -116,6 +117,7 @@ class SimulatorRunRequest(BaseModel):
     amounts_minor_units: list[int]
     payment_methods: list[str]
     failure_codes: list[str]
+    event_types: list[RevenueEventType] = Field(default_factory=list)
     high_value_indices: list[int] = Field(default_factory=list)
     high_value_amount_minor_units: int | None = None
     duplicate_event_indices: list[int] = Field(default_factory=list)

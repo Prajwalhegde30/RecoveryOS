@@ -50,6 +50,7 @@ class SimulatorConfig:
     amounts_minor_units: tuple[int, ...]
     payment_methods: tuple[str, ...]
     failure_codes: tuple[str, ...]
+    event_types: tuple[RevenueEventType, ...] = ()
     standard_currency: str = "INR"
     high_value_indices: frozenset[int] = frozenset()
     high_value_amount_minor_units: int | None = None
@@ -74,6 +75,8 @@ class SimulatorConfig:
             raise ValueError("amounts_minor_units must contain non-negative values")
         if not self.payment_methods or not self.failure_codes:
             raise ValueError("payment_methods and failure_codes must not be empty")
+        if self.event_types and len(self.event_types) != self.transaction_count:
+            raise ValueError("event_types must contain one event type per transaction")
         if len(self.standard_currency) != 3:
             raise ValueError("standard_currency must be an ISO-like three-letter code")
         if self.high_value_indices and self.high_value_amount_minor_units is None:
@@ -262,13 +265,23 @@ class SimulatorService:
             else self._random.choice(self.config.amounts_minor_units)
         )
         occurred_at = datetime(2026, 1, 1, tzinfo=UTC) + timedelta(minutes=index)
+        event_type = self.config.event_types[index] if self.config.event_types else None
+        event_type = event_type or RevenueEventType.PAYMENT_FAILED
+        obligation_type = {
+            RevenueEventType.PAYMENT_FAILED: "payment",
+            RevenueEventType.CHECKOUT_ABANDONED: "checkout",
+            RevenueEventType.SUBSCRIPTION_PAYMENT_FAILED: "subscription",
+            RevenueEventType.INVOICE_OVERDUE: "invoice",
+        }.get(event_type)
+        if obligation_type is None:
+            raise ValueError(f"simulator event type is not recoverable: {event_type}")
         return RevenueEvent(
             event_id=f"sim-{self.config.seed}-failure-{index}",
-            event_type=RevenueEventType.PAYMENT_FAILED,
+            event_type=event_type,
             merchant_id=merchant_id,
             source_object_id=f"sim-order-{self.config.seed}-{index}",
             external_obligation_id=f"sim-order-{self.config.seed}-{index}",
-            obligation_type="payment",
+            obligation_type=obligation_type,
             customer_external_id=f"sim-customer-{self.config.seed}-{index}",
             payment_id=f"sim-payment-{self.config.seed}-{index}",
             amount_minor_units=amount,
@@ -295,7 +308,11 @@ class SimulatorService:
         return base_event.model_copy(
             update={
                 "event_id": f"sim-{self.config.seed}-success-{index}",
-                "event_type": RevenueEventType.PAYMENT_SUCCEEDED,
+                "event_type": (
+                    RevenueEventType.INVOICE_PAID
+                    if base_event.event_type == RevenueEventType.INVOICE_OVERDUE
+                    else RevenueEventType.PAYMENT_SUCCEEDED
+                ),
                 # A success is a later state for the same provider payment
                 # attempt, not a new payment identity. This keeps simulator
                 # reconciliation aligned with the production event contract.

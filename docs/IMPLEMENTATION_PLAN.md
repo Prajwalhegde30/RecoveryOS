@@ -584,6 +584,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [x] Implement configurable seed, merchant count, transaction volume, payment mix, failure distributions, duplicates, opt-outs, high-value cases, natural/assisted recovery events, and provider-failure scenario controls; experiment treatment remains optional Stretch.
+  - [x] Add an optional validated event-type vector so synthetic batches can exercise checkout abandonment, recurring-payment failure, overdue invoice, and payment-failure obligations through the same ingestion path.
 - [x] Implement explicit incident and recovery scenario controls as persisted synthetic events, without claiming financial recovery before Phase 9 reconciliation.
 - [x] Run event inputs through the normal ingestion and, for recoverable failures, case/scoring/fallback paths rather than directly writing dashboard totals.
 - [x] Label simulator output and derive reported event/case/recommendation counts from persisted records.

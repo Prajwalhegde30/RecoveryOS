@@ -508,6 +508,7 @@ def run_simulator(
         amounts_minor_units=tuple(request.amounts_minor_units),
         payment_methods=tuple(request.payment_methods),
         failure_codes=tuple(request.failure_codes),
+        event_types=tuple(request.event_types),
         high_value_indices=frozenset(request.high_value_indices),
         high_value_amount_minor_units=request.high_value_amount_minor_units,
         duplicate_event_indices=frozenset(request.duplicate_event_indices),

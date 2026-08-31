@@ -5,7 +5,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.persistence.base import Base
-from app.persistence.models import Merchant, Obligation, RecoveryAction, RecoveryCase, ScheduledJob
+from app.persistence.models import (
+    Merchant,
+    Obligation,
+    RecoveryAction,
+    RecoveryCase,
+    ScheduledJob,
+)
 from app.persistence.repositories import (
     RecoveryActionRepository,
     RecoveryCaseRepository,
@@ -102,6 +108,50 @@ def test_job_claim_is_scoped_and_increments_attempt() -> None:
         assert job.status == "CLAIMED"
         assert job.attempt_count == 1
         assert job.lease_until == now + timedelta(minutes=5)
+
+
+def test_job_claim_does_not_select_another_merchants_due_job() -> None:
+    sessions = make_session()
+    with sessions.begin() as session:
+        merchant_a = Merchant(
+            external_key="merchant_jobs_a",
+            name="Jobs A",
+            default_currency="INR",
+            timezone="Asia/Kolkata",
+            environment_mode="test",
+            status="active",
+        )
+        merchant_b = Merchant(
+            external_key="merchant_jobs_b",
+            name="Jobs B",
+            default_currency="INR",
+            timezone="Asia/Kolkata",
+            environment_mode="test",
+            status="active",
+        )
+        session.add_all([merchant_a, merchant_b])
+        session.flush()
+        now = datetime(2026, 1, 1)
+        session.add(
+            ScheduledJob(
+                merchant_id=merchant_b.id,
+                job_type="send_retry_link",
+                status="PENDING",
+                due_at=now - timedelta(minutes=1),
+                max_attempts=3,
+                idempotency_key="job-other-merchant",
+                correlation_id="corr-other-merchant",
+            )
+        )
+        session.flush()
+
+        assert ScheduledJobRepository(session, merchant_a.id).claim_due(
+            now, now + timedelta(minutes=5)
+        ) is None
+
+        other_job = session.query(ScheduledJob).one()
+        assert other_job.status == "PENDING"
+        assert other_job.attempt_count == 0
 
 
 def test_action_idempotency_lookup_is_tenant_scoped() -> None:

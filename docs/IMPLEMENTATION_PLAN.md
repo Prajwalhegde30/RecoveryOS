@@ -840,7 +840,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.
   - [x] Add case-detail approval resolution controls through the typed API boundary; server-side Admin authorization and audit remain authoritative.
   - [x] Add a tenant-scoped approval queue read for unresolved policy decisions and expose it as an optional dashboard operational view.
-- [ ] Keep pages under approximately 400–500 lines by extracting feature sections/components; pure dashboard formatters now live in `apps/web/app/lib/dashboard-formatters.ts`, while the 558-line dashboard client still needs feature-section extraction. Shared presentation components remain in `packages/ui/src/components`.
+- [x] Keep pages under approximately 400–500 lines by extracting feature sections/components; pure dashboard formatters live in `apps/web/app/lib/dashboard-formatters.ts` and the case list/filter/error section is a tested shared `CaseListCard` in `packages/ui/src/components`; the dashboard client is 481 lines.
 
 **Files / Modules Affected:** `apps/web` route composition/features; `packages/ui/src` reusable additions.
 

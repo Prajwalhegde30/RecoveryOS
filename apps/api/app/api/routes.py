@@ -238,7 +238,10 @@ def cases(
     statement = (
         select(RecoveryCase, Obligation)
         .join(Obligation, Obligation.id == RecoveryCase.obligation_id)
-        .where(RecoveryCase.merchant_id == merchant_id)
+        .where(
+            RecoveryCase.merchant_id == merchant_id,
+            Obligation.merchant_id == merchant_id,
+        )
         .order_by(RecoveryCase.created_at.desc(), RecoveryCase.id.asc())
         .offset(offset)
         .limit(limit)
@@ -257,7 +260,11 @@ def case_detail(
     row = session.execute(
         select(RecoveryCase, Obligation)
         .join(Obligation, Obligation.id == RecoveryCase.obligation_id)
-        .where(RecoveryCase.id == case_id, RecoveryCase.merchant_id == merchant_id)
+        .where(
+            RecoveryCase.id == case_id,
+            RecoveryCase.merchant_id == merchant_id,
+            Obligation.merchant_id == merchant_id,
+        )
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found")
@@ -351,8 +358,10 @@ def incidents(
     for incident in records:
         case_ids = list(
             session.scalars(
-                select(CaseIncident.recovery_case_id).where(CaseIncident.incident_id == incident.id)
-            )
+            select(CaseIncident.recovery_case_id).where(CaseIncident.incident_id == incident.id)
+            .join(RecoveryCase, RecoveryCase.id == CaseIncident.recovery_case_id)
+            .where(RecoveryCase.merchant_id == merchant_id)
+        )
         )
         responses.append(
             IncidentResponse(

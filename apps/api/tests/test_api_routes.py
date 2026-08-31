@@ -492,6 +492,43 @@ def test_jwks_mode_does_not_fall_back_to_local_hmac() -> None:
         settings.auth_hmac_secret = previous_auth_secret
 
 
+def test_case_reads_reject_cross_tenant_obligation_links() -> None:
+    session = make_session()
+    session.add(
+        Obligation(
+            id="obligation-other-api",
+            merchant_id=OTHER_MERCHANT_ID,
+            obligation_type="payment",
+            external_obligation_id="order-other-api",
+            amount_at_risk=9_999,
+            currency="INR",
+            status="open",
+            authoritative_status="unpaid",
+        )
+    )
+    session.flush()
+    case = session.get(RecoveryCase, "case-api")
+    assert case is not None
+    case.obligation_id = "obligation-other-api"
+    session.commit()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    client = TestClient(app)
+    try:
+        assert client.get("/api/v1/cases", headers=auth_headers()).json() == []
+        assert client.get("/api/v1/cases/case-api", headers=auth_headers()).status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
 def test_simulator_endpoint_reuses_seeded_event_identity() -> None:
     session = make_session()
 

@@ -822,6 +822,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [ ] Implement dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, lift, costs, incidents, approvals, and system health.
+  - [x] Expose the existing dashboard metrics, case list, incident list, active policy, and operational health reads in the shared UI shell.
 - [ ] Implement case list filters/sorting and complete case detail timeline/recommendation/policy/action/reconciliation views.
   - [x] Add the first typed case-detail inspection panel for root cause, probability, attempts, policy decisions, actions, and audit-event counts.
 - [ ] Implement incident view with baseline/current health, affected cases, suppression, resolution, and confidence.
@@ -832,7 +833,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Route rendering, API loading/error/degraded states, permission presentation, case timeline, policy conflict display, dashboard metric formatting, E2E navigation.
 
-**Sprint Exit Criteria:** PARTIAL — the merchant can inspect a selected case summary and latest policy reason; complete metric coverage, case decision trail, incident details, policy/integration views, and action UX remain pending.
+**Sprint Exit Criteria:** PARTIAL — the merchant can inspect a selected case summary, latest policy reason, active policy, and operational health; complete metric coverage, case decision trail, incident details, policy/integration views, and action UX remain pending.
 
 **Phase 13 Exit Criteria:** PARTIAL — the responsive shell and initial case inspection are usable without domain logic in components; full operational dashboard and case/incident/policy workflows remain pending.
 

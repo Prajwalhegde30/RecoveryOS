@@ -37,6 +37,13 @@ type CaseDetail = CaseSummary & {
   timeline: Array<{ event_type: string; reason: string; created_at: string }>;
 };
 type Incident = { id: string; dimension_key: string; status: string; confidence: number };
+type OperationalHealth = {
+  components: Record<
+    string,
+    { status: string; detail: string; pending_jobs?: number; stale_claims?: number }
+  >;
+};
+type CurrentPolicy = { version: number; status: string; policy: Record<string, unknown> };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 const merchantId = process.env.NEXT_PUBLIC_MERCHANT_ID ?? '';
@@ -46,6 +53,8 @@ export function DashboardClient() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [health, setHealth] = useState<OperationalHealth | null>(null);
+  const [policy, setPolicy] = useState<CurrentPolicy | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -64,17 +73,28 @@ export function DashboardClient() {
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${authToken}` };
-      const [dashboardResponse, casesResponse, incidentsResponse] = await Promise.all([
-        fetch(`${apiBaseUrl}/api/v1/dashboard`, { headers }),
-        fetch(`${apiBaseUrl}/api/v1/cases?limit=8`, { headers }),
-        fetch(`${apiBaseUrl}/api/v1/incidents?active_only=true`, { headers }),
-      ]);
-      if (!dashboardResponse.ok || !casesResponse.ok || !incidentsResponse.ok) {
+      const [dashboardResponse, casesResponse, incidentsResponse, healthResponse, policyResponse] =
+        await Promise.all([
+          fetch(`${apiBaseUrl}/api/v1/dashboard`, { headers }),
+          fetch(`${apiBaseUrl}/api/v1/cases?limit=8`, { headers }),
+          fetch(`${apiBaseUrl}/api/v1/incidents?active_only=true`, { headers }),
+          fetch(`${apiBaseUrl}/api/v1/health/operational`, { headers }),
+          fetch(`${apiBaseUrl}/api/v1/policies/current`, { headers }),
+        ]);
+      if (
+        !dashboardResponse.ok ||
+        !casesResponse.ok ||
+        !incidentsResponse.ok ||
+        !healthResponse.ok ||
+        !policyResponse.ok
+      ) {
         throw new Error('The RecoveryOS API returned a degraded response.');
       }
       setDashboard((await dashboardResponse.json()) as Dashboard);
       setCases((await casesResponse.json()) as CaseSummary[]);
       setIncidents((await incidentsResponse.json()) as Incident[]);
+      setHealth((await healthResponse.json()) as OperationalHealth);
+      setPolicy((await policyResponse.json()) as CurrentPolicy);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load RecoveryOS data.');
     } finally {
@@ -212,6 +232,71 @@ export function DashboardClient() {
                   </div>
                 ) : (
                   <EmptyState>No active incidents. Outreach guardrails are clear.</EmptyState>
+                )}
+              </Card>
+            </div>
+            <div className="content-grid">
+              <Card>
+                <CardHeader>
+                  <CardTitle>System health</CardTitle>
+                  <Badge
+                    tone={
+                      health &&
+                      Object.values(health.components).some((item) => item.status === 'degraded')
+                        ? 'warning'
+                        : 'success'
+                    }
+                  >
+                    {health ? 'Live checks' : 'Unavailable'}
+                  </Badge>
+                </CardHeader>
+                {health ? (
+                  <div className="data-list">
+                    {Object.entries(health.components).map(([name, component]) => (
+                      <div className="data-row" key={name}>
+                        <div>
+                          <p>{name.replaceAll('_', ' ')}</p>
+                          <small>{component.detail}</small>
+                        </div>
+                        <Badge tone={component.status === 'healthy' ? 'success' : 'warning'}>
+                          {component.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState>Operational health is unavailable.</EmptyState>
+                )}
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active policy</CardTitle>
+                  <Badge>{policy ? `v${policy.version}` : 'Unavailable'}</Badge>
+                </CardHeader>
+                {policy ? (
+                  <div className="data-list">
+                    <div className="data-row">
+                      <div>
+                        <p>Policy status</p>
+                        <small>Server-evaluated policy controls action eligibility.</small>
+                      </div>
+                      <Badge tone={policy.status === 'ACTIVE' ? 'success' : 'warning'}>
+                        {policy.status}
+                      </Badge>
+                    </div>
+                    <div className="data-row">
+                      <div>
+                        <p>Configured channels</p>
+                        <small>
+                          {Array.isArray(policy.policy.enabled_channels)
+                            ? policy.policy.enabled_channels.join(', ')
+                            : 'Not exposed'}
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState>No active policy is available.</EmptyState>
                 )}
               </Card>
             </div>

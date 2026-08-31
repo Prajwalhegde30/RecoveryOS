@@ -565,6 +565,10 @@ def test_action_command_requires_operator_role_and_persists_blocking_decision() 
             headers=auth_headers_for("subject-viewer", role="VIEWER"),
         )
         assert viewer_approval.status_code == 403
+        viewer_audit = client.get(
+            "/api/v1/audit", headers=auth_headers_for("subject-viewer", role="VIEWER")
+        )
+        assert viewer_audit.status_code == 403
         approved = client.post(
             "/api/v1/cases/case-api/approvals",
             json={

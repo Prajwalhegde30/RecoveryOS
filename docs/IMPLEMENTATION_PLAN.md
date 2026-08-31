@@ -781,6 +781,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.
 - [x] Add worker and integration health endpoints.
   - [x] Add tenant-scoped operational health reporting for database query status, pending jobs, expired leases, safe simulated provider status, and persisted worker heartbeat status.
+  - [x] Extend the typed web client across the current simulator start, status, and non-destructive reset lifecycle.
 
 **Files / Modules Affected:** API routes/dependencies, simulator/application services, health checks.
 

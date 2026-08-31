@@ -85,6 +85,12 @@ class CorrelationRateLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
         response.headers["X-Correlation-Id"] = correlation_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+        if settings.app_env.lower() == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
 
 

@@ -895,6 +895,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Add safe not-found/forbidden behavior without information leakage.
   - [x] Verify authenticated cross-tenant case, policy, action, health, dashboard aggregate, case-list, and incident-list requests use the caller's merchant scope and return safe results.
 - [ ] Add tenant-aware seed fixtures and operational audit review.
+  - [x] Verify simulator run status/reset and simulator audit events cannot cross merchant scope.
 
 **Files / Modules Affected:** All API application/repository query boundaries, auth tests, web data loaders.
 

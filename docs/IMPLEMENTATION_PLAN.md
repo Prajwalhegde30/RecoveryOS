@@ -832,6 +832,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Keep primary dashboard metrics available when secondary case or incident reads fail; failed sections expose safe retryable UI states instead of blanking the whole dashboard.
   - [ ] Add experiment lift only with the optional Stretch experiment/measurement path; it is not an MVP dashboard dependency.
 - [x] Implement case list status filtering and priority/newest presentation sorting through the typed API boundary.
+  - [x] Add tenant-scoped root-cause filtering and expose the persisted diagnosis in case summaries.
 - [x] Implement case detail timeline/recommendation/policy/action/reconciliation views.
   - [x] Add a bounded dashboard action command for the registered email recovery action and surface server policy outcomes.
   - [x] Add the typed case-detail inspection panel for root cause, probability, attempts, persisted recommendations, policy decisions, actions, and recent audit timeline.

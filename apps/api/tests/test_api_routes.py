@@ -751,6 +751,46 @@ def test_simulator_endpoint_reuses_seeded_event_identity() -> None:
         session.close()
 
 
+def test_simulator_run_status_and_audit_are_tenant_scoped() -> None:
+    session = make_session()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    client = TestClient(app)
+    payload = {
+        "seed": 715,
+        "transaction_count": 1,
+        "amounts_minor_units": [1000],
+        "payment_methods": ["upi"],
+        "failure_codes": ["UPI_TIMEOUT"],
+    }
+    try:
+        created = client.post("/api/v1/simulator/runs", json=payload, headers=auth_headers())
+        assert created.status_code == 200
+        run_id = created.json()["run_id"]
+        assert client.get(
+            f"/api/v1/simulator/runs/{run_id}", headers=other_merchant_headers()
+        ).status_code == 404
+        assert client.post(
+            f"/api/v1/simulator/runs/{run_id}/reset", headers=other_merchant_headers()
+        ).status_code == 404
+        other_audit = client.get("/api/v1/audit", headers=other_merchant_headers())
+        assert other_audit.status_code == 200
+        assert other_audit.json() == []
+        own_audit = client.get("/api/v1/audit", headers=auth_headers())
+        assert own_audit.status_code == 200
+        assert any(event["entity_id"] == run_id for event in own_audit.json())
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
 def test_simulator_endpoint_rejects_non_recoverable_event_type() -> None:
     session = make_session()
 

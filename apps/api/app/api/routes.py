@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.actions.service import ActionCommandService
@@ -98,31 +99,34 @@ def operational_health(
     """Expose safe tenant-scoped signals without claiming worker heartbeats."""
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    pending_jobs = int(
-        session.scalar(
-            select(func.count())
-            .select_from(ScheduledJob)
-            .where(ScheduledJob.merchant_id == merchant_id, ScheduledJob.status == "PENDING")
-        )
-        or 0
-    )
-    stale_claims = int(
-        session.scalar(
-            select(func.count())
-            .select_from(ScheduledJob)
-            .where(
-                ScheduledJob.merchant_id == merchant_id,
-                ScheduledJob.status == "CLAIMED",
-                ScheduledJob.lease_until < now,
+    try:
+        pending_jobs = int(
+            session.scalar(
+                select(func.count())
+                .select_from(ScheduledJob)
+                .where(ScheduledJob.merchant_id == merchant_id, ScheduledJob.status == "PENDING")
             )
+            or 0
         )
-        or 0
-    )
-    heartbeat = session.scalar(
-        select(WorkerHeartbeat)
-        .where(WorkerHeartbeat.merchant_id == merchant_id)
-        .order_by(WorkerHeartbeat.last_seen_at.desc())
-    )
+        stale_claims = int(
+            session.scalar(
+                select(func.count())
+                .select_from(ScheduledJob)
+                .where(
+                    ScheduledJob.merchant_id == merchant_id,
+                    ScheduledJob.status == "CLAIMED",
+                    ScheduledJob.lease_until < now,
+                )
+            )
+            or 0
+        )
+        heartbeat = session.scalar(
+            select(WorkerHeartbeat)
+            .where(WorkerHeartbeat.merchant_id == merchant_id)
+            .order_by(WorkerHeartbeat.last_seen_at.desc())
+        )
+    except SQLAlchemyError:
+        return _degraded_operational_health(merchant_id)
     heartbeat_is_stale = heartbeat is not None and heartbeat.last_seen_at < (
         now - timedelta(seconds=get_settings().job_lease_seconds)
     )
@@ -152,6 +156,29 @@ def operational_health(
                 ),
                 pending_jobs=pending_jobs,
                 stale_claims=stale_claims,
+            ),
+            payment_health.provider: ComponentHealthResponse(
+                status=payment_health.status.value, detail=payment_health.detail
+            ),
+            messaging_health.provider: ComponentHealthResponse(
+                status=messaging_health.status.value, detail=messaging_health.detail
+            ),
+        },
+    )
+
+
+def _degraded_operational_health(merchant_id: str) -> OperationalHealthResponse:
+    payment_health = SimulatedPaymentProvider().health()
+    messaging_health = SimulatedMessagingProvider().health()
+    return OperationalHealthResponse(
+        merchant_id=merchant_id,
+        checked_at=datetime.now(UTC),
+        components={
+            "database": ComponentHealthResponse(
+                status="degraded", detail="database health data is unavailable"
+            ),
+            "worker": ComponentHealthResponse(
+                status="unknown", detail="worker health data is unavailable"
             ),
             payment_health.provider: ComponentHealthResponse(
                 status=payment_health.status.value, detail=payment_health.detail

@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
 import app.main as main_module
+from app.api.routes import operational_health
 from app.main import app
 
 client = TestClient(app)
@@ -54,3 +55,14 @@ def test_readiness_reports_database_degradation_without_internal_details(monkeyp
     assert response.status_code == 503
     assert response.json() == {"detail": "database readiness check failed"}
     assert "database secret" not in response.text
+
+
+def test_operational_health_returns_safe_degraded_database_state() -> None:
+    class BrokenSession:
+        def scalar(self, *_args):
+            raise OperationalError("SELECT", {}, RuntimeError("database secret"))
+
+    response = operational_health(merchant_id="merchant-1", session=BrokenSession())
+    assert response.components["database"].status == "degraded"
+    assert response.components["database"].detail == "database health data is unavailable"
+    assert response.components["worker"].status == "unknown"

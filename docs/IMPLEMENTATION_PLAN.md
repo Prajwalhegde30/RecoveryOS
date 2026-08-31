@@ -946,6 +946,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Persist safe provider execution latency for completed and failed/retried worker attempts and expose tenant-scoped aggregate samples/total/average metrics; deployment-backed alerting remains open.
 - [ ] Implement liveness/readiness and dependency health states.
   - [x] Keep public liveness independent from dependencies and make readiness verify database availability with a safe degraded response.
+  - [x] Return a safe degraded database component from the authenticated operational-health read when its tenant queries fail.
   - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.
   - [x] Mark an old worker heartbeat as degraded using the existing configured job-lease freshness boundary; heartbeat state remains tenant-scoped and safe for operators.
 - [ ] Add error tracking hooks, stuck-job alerts, queue/backlog metrics, AI fallback metrics, and provider failure visibility.

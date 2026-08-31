@@ -325,7 +325,10 @@ class SimulatorService:
             self.session.scalar(
                 select(func.count())
                 .select_from(RevenueEventRecord)
-                .where(RevenueEventRecord.external_event_id.in_(event_ids))
+                .where(
+                    RevenueEventRecord.merchant_id.in_(self.config.merchant_ids),
+                    RevenueEventRecord.external_event_id.in_(event_ids),
+                )
             )
             or 0
         )
@@ -337,7 +340,10 @@ class SimulatorService:
             self.session.scalar(
                 select(func.count())
                 .select_from(Recommendation)
-                .where(Recommendation.recovery_case_id.in_(case_ids))
+                .where(
+                    Recommendation.merchant_id.in_(self.config.merchant_ids),
+                    Recommendation.recovery_case_id.in_(case_ids),
+                )
             )
             or 0
         )

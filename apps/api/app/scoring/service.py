@@ -70,12 +70,15 @@ class CaseAnalysisService:
             return result
 
     def _amount(self, case: RecoveryCase) -> int:
-        return (
-            self.session.scalar(
-                select(Obligation.amount_at_risk).where(Obligation.id == case.obligation_id)
+        amount = self.session.scalar(
+            select(Obligation.amount_at_risk).where(
+                Obligation.id == case.obligation_id,
+                Obligation.merchant_id == self.merchant_id,
             )
-            or 0
         )
+        if amount is None:
+            raise LookupError("obligation is outside merchant scope")
+        return amount
 
     def _audit(
         self,

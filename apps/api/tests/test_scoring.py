@@ -9,7 +9,14 @@ from app.cases.service import RecoveryCaseService
 from app.events.contracts import RevenueEvent
 from app.events.service import EventIngestionService
 from app.persistence.base import Base
-from app.persistence.models import RecoveryCase
+from app.persistence.models import (
+    Merchant,
+    Obligation,
+    RecoveryCase,
+)
+from app.persistence.models import (
+    RevenueEvent as PersistedRevenueEvent,
+)
 from app.scoring.diagnosis import RootCause, classify
 from app.scoring.economics import ScoringConfig, calculate_score
 from app.scoring.service import CaseAnalysisService
@@ -69,3 +76,72 @@ def test_case_analysis_persists_score_and_transitions_case() -> None:
         assert stored.status == "ACTION_PENDING"
         assert stored.recovery_probability == 60
         assert stored.expected_recoverable_amount == 6000
+
+
+def test_case_analysis_rejects_cross_tenant_obligation_reference() -> None:
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add_all(
+            [
+                Merchant(
+                    id="merchant-score-a",
+                    external_key="score-a",
+                    name="A",
+                    default_currency="INR",
+                    timezone="UTC",
+                    environment_mode="test",
+                    status="active",
+                ),
+                Merchant(
+                    id="merchant-score-b",
+                    external_key="score-b",
+                    name="B",
+                    default_currency="INR",
+                    timezone="UTC",
+                    environment_mode="test",
+                    status="active",
+                ),
+            ]
+        )
+        obligation = Obligation(
+            id="obligation-score-b",
+            merchant_id="merchant-score-b",
+            obligation_type="payment",
+            external_obligation_id="order-score-b",
+            amount_at_risk=1000,
+            currency="INR",
+            status="open",
+            authoritative_status="failed",
+        )
+        case = RecoveryCase(
+            id="case-score-a",
+            merchant_id="merchant-score-a",
+            obligation_id=obligation.id,
+            source_type="payment_failure",
+            status="ACTION_PENDING",
+            max_attempts_snapshot=3,
+            currency="INR",
+            attribution_status="pending",
+        )
+        session.add_all([obligation, case])
+        session.add(
+            PersistedRevenueEvent(
+                merchant_id="merchant-score-a",
+                provider="test",
+                external_event_id="event-score-a",
+                event_type="payment.failed",
+                source_object_id="order-score-a",
+                recovery_case_id=case.id,
+                normalized_payload={"failure_code": "UPI_TIMEOUT"},
+                processing_status="PROCESSED",
+                correlation_id="score-a",
+            )
+        )
+        session.commit()
+        case_id = case.id
+        session.rollback()
+        with pytest.raises(LookupError, match="outside merchant scope"):
+            CaseAnalysisService(session, "merchant-score-a", config()).analyze(case_id)

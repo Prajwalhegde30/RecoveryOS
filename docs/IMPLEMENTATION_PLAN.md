@@ -872,7 +872,9 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [ ] Apply merchant scope to every read, write, job claim, audit query, metric, simulator, and provider context.
+  - [x] Keep scoring obligation lookup and simulator result aggregation explicitly merchant-scoped.
 - [ ] Verify external IDs cannot cross-resolve between merchants.
+  - [x] Add a regression test rejecting a case whose obligation reference belongs to another merchant.
 - [ ] Add safe not-found/forbidden behavior without information leakage.
 - [ ] Add tenant-aware seed fixtures and operational audit review.
 

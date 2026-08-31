@@ -963,10 +963,15 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [ ] Add unit tests for money, identity, state, scoring, policy, incident, attribution, and configuration.
+  - [x] Cover monetary representation, event/case identity, state transitions, scoring, policy precedence, incident lifecycle, attribution, and configuration validation in the current API test suite.
 - [ ] Add integration tests for migrations, repositories, webhook-to-case, success reconciliation, jobs, adapters, auth, and tenant isolation.
+  - [x] Cover persistence constraints, repositories, webhook ingestion, authoritative reconciliation, durable jobs, provider adapters, authentication, and tenant-scoped API reads/mutations.
 - [ ] Add API contract and frontend route tests.
+  - [x] Validate OpenAPI paths, typed API client behavior, dashboard route rendering, loading/error states, and authenticated dashboard/case/health/metrics reads.
 - [ ] Add worker/concurrency tests with injectable clock and controlled provider doubles.
+  - [x] Cover worker lease recovery, restart behavior, payment races, provider retry/terminal failure, duplicate execution, and controlled execution time.
 - [ ] Add E2E harness for the first vertical slice.
+  - [x] Maintain the zero-configuration API/web smoke harness and optional authenticated read-path checks; the full browser-driven financial vertical slice remains pending.
 
 **Files / Modules Affected:** `apps/api/tests`, `apps/web` tests, shared fixtures/scripts, CI.
 

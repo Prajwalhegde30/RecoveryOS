@@ -824,6 +824,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Implement dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, lift, costs, incidents, approvals, and system health.
   - [x] Expose the existing dashboard metrics, case list, incident list, active policy, and operational health reads in the shared UI shell.
 - [ ] Implement case list filters/sorting and complete case detail timeline/recommendation/policy/action/reconciliation views.
+  - [x] Add a bounded dashboard action command for the registered email recovery action and surface server policy outcomes.
   - [x] Add the first typed case-detail inspection panel for root cause, probability, attempts, policy decisions, actions, and audit-event counts.
 - [ ] Implement incident view with baseline/current health, affected cases, suppression, resolution, and confidence.
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.

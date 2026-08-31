@@ -58,6 +58,7 @@ export function DashboardClient() {
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -302,7 +303,52 @@ export function DashboardClient() {
             </div>
             {detailLoading ? <LoadingState label="Loading case details…" /> : null}
             {detailError ? <ErrorState message={detailError} /> : null}
-            {selectedCase ? <CaseDetailPanel item={selectedCase} /> : null}
+            {selectedCase ? (
+              <CaseDetailPanel
+                item={selectedCase}
+                actionMessage={actionMessage}
+                onRequestAction={async () => {
+                  setActionMessage(null);
+                  try {
+                    const response = await fetch(
+                      `${apiBaseUrl}/api/v1/cases/${selectedCase.id}/actions`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${authToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          action_type: 'SEND_EMAIL',
+                          idempotency_key: `dashboard-${selectedCase.id}-${crypto.randomUUID()}`,
+                          due_at: new Date().toISOString(),
+                          channel: 'email',
+                        }),
+                      },
+                    );
+                    const result = (await response.json()) as {
+                      status?: string;
+                      reason?: string;
+                      detail?: string;
+                    };
+                    if (!response.ok)
+                      throw new Error(
+                        result.detail ?? 'The recovery action could not be requested.',
+                      );
+                    setActionMessage(
+                      `${result.status ?? 'Processed'}: ${result.reason ?? 'policy evaluated'}`,
+                    );
+                    await loadCaseDetail(selectedCase.id);
+                  } catch (cause) {
+                    setActionMessage(
+                      cause instanceof Error
+                        ? cause.message
+                        : 'The recovery action could not be requested.',
+                    );
+                  }
+                }}
+              />
+            ) : null}
           </>
         ) : null}
       </div>
@@ -310,7 +356,15 @@ export function DashboardClient() {
   );
 }
 
-function CaseDetailPanel({ item }: { item: CaseDetail }) {
+function CaseDetailPanel({
+  item,
+  actionMessage,
+  onRequestAction,
+}: {
+  item: CaseDetail;
+  actionMessage: string | null;
+  onRequestAction: () => Promise<void>;
+}) {
   return (
     <Card className="case-detail-card">
       <CardHeader>
@@ -349,6 +403,16 @@ function CaseDetailPanel({ item }: { item: CaseDetail }) {
       <p className="case-detail-note">
         {item.policy_decisions.at(-1)?.reason ?? 'No policy decision recorded yet.'}
       </p>
+      <div className="case-detail-actions">
+        <Button
+          type="button"
+          onClick={() => void onRequestAction()}
+          disabled={['RECOVERED', 'CANCELLED', 'OPTED_OUT', 'EXHAUSTED'].includes(item.status)}
+        >
+          Request email recovery
+        </Button>
+        {actionMessage ? <p className="case-detail-note">{actionMessage}</p> : null}
+      </div>
     </Card>
   );
 }

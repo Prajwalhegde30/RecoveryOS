@@ -29,6 +29,7 @@ from app.policy.schema import Channel, MerchantPolicyDocument
 from app.policy.service import PolicyService
 
 MERCHANT_ID = "merchant-api"
+OTHER_MERCHANT_ID = "merchant-other"
 
 
 def make_session() -> Session:
@@ -49,6 +50,17 @@ def make_session() -> Session:
         )
     )
     session.add(
+        Merchant(
+            id=OTHER_MERCHANT_ID,
+            external_key="other-api-merchant",
+            name="Other API Merchant",
+            default_currency="INR",
+            timezone="UTC",
+            environment_mode="test",
+            status="active",
+        )
+    )
+    session.add(
         User(
             id="user-api",
             subject="subject-api",
@@ -58,6 +70,18 @@ def make_session() -> Session:
         )
     )
     session.add(MerchantMembership(merchant_id=MERCHANT_ID, user_id="user-api", role="ADMIN"))
+    session.add(
+        User(
+            id="user-other-api",
+            subject="subject-other-api",
+            issuer="recoveryos-local",
+            email_or_label="other@test",
+            status="active",
+        )
+    )
+    session.add(
+        MerchantMembership(merchant_id=OTHER_MERCHANT_ID, user_id="user-other-api", role="ADMIN")
+    )
     obligation = Obligation(
         id="obligation-api",
         merchant_id=MERCHANT_ID,
@@ -142,6 +166,10 @@ def auth_headers_for(
     return {"Authorization": f"Bearer {token}"}
 
 
+def other_merchant_headers() -> dict[str, str]:
+    return auth_headers_for("subject-other-api", merchant_id=OTHER_MERCHANT_ID, role="ADMIN")
+
+
 def activate_policy(session: Session, *, approval_threshold: int = 10_000) -> None:
     session.rollback()
     now = datetime.now(UTC)
@@ -193,9 +221,29 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         assert incidents.status_code == 200
         assert incidents.json()[0]["affected_case_ids"] == ["case-api"]
         assert (
-            client.get("/api/v1/cases/case-api", headers=auth_headers("other-merchant")).status_code
-            == 403
+            client.get("/api/v1/cases/case-api", headers=other_merchant_headers()).status_code
+            == 404
         )
+        assert (
+            client.get("/api/v1/policies/current", headers=other_merchant_headers()).status_code
+            == 404
+        )
+        assert (
+            client.get("/api/v1/health/operational", headers=other_merchant_headers()).json()[
+                "merchant_id"
+            ]
+            == OTHER_MERCHANT_ID
+        )
+        action = client.post(
+            "/api/v1/cases/case-api/actions",
+            json={
+                "action_type": "GENERATE_PAYMENT_LINK",
+                "idempotency_key": "cross-tenant-action",
+                "due_at": "2030-01-01T12:00:00Z",
+            },
+            headers=other_merchant_headers(),
+        )
+        assert action.status_code == 404
     finally:
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret

@@ -876,6 +876,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Verify external IDs cannot cross-resolve between merchants.
   - [x] Add a regression test rejecting a case whose obligation reference belongs to another merchant.
 - [ ] Add safe not-found/forbidden behavior without information leakage.
+  - [x] Verify authenticated cross-tenant case, policy, action, and health requests use the caller's merchant scope and return safe results.
 - [ ] Add tenant-aware seed fixtures and operational audit review.
 
 **Files / Modules Affected:** All API application/repository query boundaries, auth tests, web data loaders.

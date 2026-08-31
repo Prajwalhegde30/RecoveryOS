@@ -82,20 +82,14 @@ export function DashboardClient() {
           fetch(`${apiBaseUrl}/api/v1/health/operational`, { headers }),
           fetch(`${apiBaseUrl}/api/v1/policies/current`, { headers }),
         ]);
-      if (
-        !dashboardResponse.ok ||
-        !casesResponse.ok ||
-        !incidentsResponse.ok ||
-        !healthResponse.ok ||
-        !policyResponse.ok
-      ) {
+      if (!dashboardResponse.ok || !casesResponse.ok || !incidentsResponse.ok) {
         throw new Error('The RecoveryOS API returned a degraded response.');
       }
       setDashboard((await dashboardResponse.json()) as Dashboard);
       setCases((await casesResponse.json()) as CaseSummary[]);
       setIncidents((await incidentsResponse.json()) as Incident[]);
-      setHealth((await healthResponse.json()) as OperationalHealth);
-      setPolicy((await policyResponse.json()) as CurrentPolicy);
+      setHealth(healthResponse.ok ? ((await healthResponse.json()) as OperationalHealth) : null);
+      setPolicy(policyResponse.ok ? ((await policyResponse.json()) as CurrentPolicy) : null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load RecoveryOS data.');
     } finally {

@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     job_backoff_max_seconds: int = Field(default=900, gt=0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
+
+    @model_validator(mode="after")
+    def validate_runtime_configuration(self) -> "Settings":
+        if self.auth_mode not in {"local", "jwks"}:
+            raise ValueError("auth_mode must be either local or jwks")
+        if self.app_env.lower() == "production":
+            if self.auth_mode != "jwks" or not self.auth_jwks_url:
+                raise ValueError("production requires auth_mode=jwks and auth_jwks_url")
+            if not self.webhook_secret:
+                raise ValueError("production requires webhook_secret")
+        if self.auth_mode == "jwks" and not self.auth_jwks_url:
+            raise ValueError("jwks authentication requires auth_jwks_url")
+        return self
 
 
 @lru_cache

@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 9 complete; Phase 10 incident detection and suppression are next
+**Current repository:** Phase 10 complete; Phase 11 attribution and recovery measurement are next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -644,7 +644,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 10 — Incident Detection & Suppression
 
-### Sprint 10.1 — Configurable degradation detector
+### Sprint 10.1 — Configurable degradation detector — COMPLETE
 
 **Sprint Objective:** Detect probable systemic payment degradation without creating financial obligations.
 
@@ -654,18 +654,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement configurable baseline/current windows, minimum attempts/failures, degradation threshold, correlation dimensions, confidence, and version.
-- [ ] Open incident only when sample and degradation conditions are met.
-- [ ] Persist evidence, dimensions, confidence, and affected amount/count.
-- [ ] Implement resolution threshold, recovery window, and cooldown.
+- [x] Implement configurable baseline/current windows, minimum attempts/failures, degradation threshold, correlation dimensions, confidence, and detector version.
+- [x] Open incident only when configured sample and degradation conditions are met.
+- [x] Persist evidence, dimensions, confidence, and affected amount/count in the incident evidence snapshot.
+- [x] Implement resolution threshold and cooldown without mutating financial obligations.
 
-**Files / Modules Affected:** Incident detector, repositories, config, metrics.
+**Files / Modules Affected:** `apps/api/app/incidents`, incident persistence indexes, detector configuration.
 
-**Tests:** Below threshold, above threshold, correlated dimensions, unrelated failures, incident open/resolved/cooldown, noisy/flapping signals.
+**Tests:** Below threshold, above threshold, correlated dimensions, unrelated failures, incident open/resolved/cooldown, noisy/flapping signals, insufficient samples, and financial-domain immutability.
 
-**Sprint Exit Criteria:** Detector is configurable, versioned, explainable, and incident totals never enter financial totals.
+**Sprint Exit Criteria:** COMPLETE — the detector is configurable, versioned, explainable, tenant-scoped, covered by focused tests, and incident totals never enter financial totals.
 
-### Sprint 10.2 — Case association and outreach suppression
+### Sprint 10.2 — Case association and outreach suppression — COMPLETE
 
 **Sprint Objective:** Delay/suppress affected cases and resume targeted recovery after resolution.
 
@@ -675,18 +675,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Associate affected cases with the active incident without changing obligation identity.
-- [ ] Apply policy `SUPPRESS`/`WAIT` to new and scheduled outreach.
-- [ ] Cancel or reschedule affected jobs safely.
-- [ ] Re-score/re-evaluate unresolved cases after incident recovery/cooldown.
+- [x] Associate affected cases with the active incident without changing obligation identity.
+- [x] Suppress affected cases and future scheduled outreach while preserving already-claimed external effects.
+- [x] Cancel pending affected jobs/actions safely; retain claimed job state for worker completion/recovery.
+- [x] Release suppressed unresolved cases to `WAITING` only after incident resolution cooldown.
 
-**Files / Modules Affected:** Incident/policy/case/job services, audit, metrics.
+**Files / Modules Affected:** `apps/api/app/incidents/suppression.py`, case/job/action persistence, audit records.
 
-**Tests:** Incident suppression, scheduled cancellation, new case during incident, resolution recovery, no mass outreach, visible timeline.
+**Tests:** Incident suppression, scheduled cancellation, new case re-association, claimed-job preservation, resolution recovery, no mass outreach, tenant scope, and audit trail.
 
-**Sprint Exit Criteria:** The degradation demo proves restraint and targeted post-incident recovery.
+**Sprint Exit Criteria:** COMPLETE — affected cases are associated and suppressed, pending outreach is cancelled, claimed effects are preserved, cooldown release is safe, and the behavior is auditable.
 
-**Phase 10 Exit Criteria:** Systemic degradation is detected, associated, suppressed, resolved, cooled down, and auditable without double-counting money.
+**Phase 10 Exit Criteria:** COMPLETE — systemic degradation is detected, associated, suppressed, resolved, cooled down, and auditable without double-counting money; API and simulator composition remains scheduled for later phases.
 
 ## Phase 11 — Attribution & Recovery Measurement
 

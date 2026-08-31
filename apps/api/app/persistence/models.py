@@ -386,6 +386,15 @@ class Incident(Base):
     confidence: Mapped[int] = mapped_column(Integer, nullable=False)
     evidence_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     detector_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    __table_args__ = (
+        Index(
+            "ix_incidents_merchant_dimension_status",
+            "merchant_id",
+            "dimension_key",
+            "status",
+        ),
+        Index("ix_incidents_merchant_cooldown", "merchant_id", "cooldown_until"),
+    )
 
 
 class CaseIncident(Base):

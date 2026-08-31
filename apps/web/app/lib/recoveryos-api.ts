@@ -1,5 +1,5 @@
 export type Metrics = Record<string, number | null>;
-export type Dashboard = { metrics: Metrics; freshness: string };
+export type Dashboard = { metrics: Metrics; freshness: string; last_updated_at: string };
 export type CaseSummary = {
   id: string;
   obligation_id: string;

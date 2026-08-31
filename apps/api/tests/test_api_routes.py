@@ -212,6 +212,8 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
     try:
         dashboard = client.get("/api/v1/dashboard", headers=auth_headers())
         assert dashboard.status_code == 200
+        assert dashboard.json()["freshness"] == "live"
+        assert dashboard.json()["last_updated_at"]
         operational = client.get("/api/v1/health/operational", headers=auth_headers())
         assert operational.status_code == 200
         assert operational.json()["components"]["database"]["status"] == "healthy"
@@ -248,6 +250,7 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         assert other_metrics.json()["metrics"]["cases_total"] == 0
         other_dashboard = client.get("/api/v1/dashboard", headers=other_merchant_headers())
         assert other_dashboard.status_code == 200
+        assert other_dashboard.json()["last_updated_at"]
         assert other_dashboard.json()["metrics"]["revenue_at_risk_minor_units"] == 0
         assert client.get("/api/v1/cases", headers=other_merchant_headers()).json() == []
         assert client.get("/api/v1/incidents", headers=other_merchant_headers()).json() == []

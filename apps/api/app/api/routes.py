@@ -67,10 +67,12 @@ def dashboard(
     merchant_id: str = merchant_scope_dependency,
     session: Session = db_session_dependency,
 ) -> DashboardResponse:
+    observed_at = datetime.now(UTC)
     metrics = RecoveryMetricsService(session, merchant_id).calculate()
     return DashboardResponse(
         merchant_id=merchant_id,
         freshness="live",
+        last_updated_at=observed_at,
         metrics={
             "revenue_at_risk_minor_units": metrics.revenue_at_risk_minor_units,
             "expected_recoverable_minor_units": metrics.expected_recoverable_minor_units,

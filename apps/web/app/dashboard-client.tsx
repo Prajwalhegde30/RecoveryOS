@@ -228,7 +228,10 @@ export function DashboardClient() {
             <div className="section-heading">
               <div>
                 <h2>Operational view</h2>
-                <p>Freshness: {dashboard.freshness}</p>
+                <p>
+                  Freshness: {dashboard.freshness} · Last updated{' '}
+                  {formatTimestamp(dashboard.last_updated_at)}
+                </p>
               </div>
               <Badge tone={incidents.length ? 'warning' : 'success'}>
                 {incidents.length
@@ -514,4 +517,14 @@ function formatDuration(seconds: number | null | undefined) {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function formatTimestamp(value: string) {
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime())
+    ? 'unavailable'
+    : new Intl.DateTimeFormat('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(timestamp);
 }

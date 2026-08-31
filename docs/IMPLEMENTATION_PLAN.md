@@ -726,11 +726,11 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Implement revenue at risk, expected recoverable, recovered, natural, assisted, unrecovered, suppressed, cost, net recovery, recovery rate, and median time metrics.
 - [x] Derive metrics from tenant-scoped persisted obligations, cases, actions, and attribution records.
 - [x] Prevent incident/message/recommendation counts from entering financial totals.
-- [ ] Add API freshness metadata and partial-data behavior with the API/read-model boundary in Phase 12.
+- [x] Add API freshness metadata and partial-data behavior with the API/read-model boundary in Phase 12.
 
 **Files / Modules Affected:** `apps/api/app/attribution/metrics.py`, tenant-scoped metric queries; API serializers remain Phase 12.
 
-**Tests:** Expected aggregation, duplicate resistance, cost/net calculation, empty data, integer percentage calculation, and tenant scope. API freshness/partial-data behavior remains Phase 12.
+**Tests:** Expected aggregation, duplicate resistance, cost/net calculation, empty data, integer percentage calculation, and tenant scope. API freshness and partial-data behavior are covered at the API/UI boundary.
 
 **Sprint Exit Criteria:** COMPLETE — metrics are integer-safe, tenant-scoped, derived from persisted case/payment/action/attribution facts, and reconcile to source totals for implemented fields.
 

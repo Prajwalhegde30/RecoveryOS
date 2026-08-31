@@ -71,6 +71,7 @@ class IncidentResponse(BaseModel):
 class DashboardResponse(BaseModel):
     merchant_id: str
     freshness: str
+    last_updated_at: datetime
     metrics: dict[str, int | None]
 
 

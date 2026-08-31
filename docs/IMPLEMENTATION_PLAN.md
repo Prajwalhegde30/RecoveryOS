@@ -784,7 +784,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Signature rejection, duplicate webhook, unauthorized simulator/action, stale worker, dependency degraded, case not found, safe error payload.
 
-**Sprint Exit Criteria:** PARTIAL — signed ingestion, Admin simulator start/status/reset, authenticated action/approval paths, active-policy read, tenant-scoped operational health read, and an explicit typed web client are implemented; generated OpenAPI validation remains pending.
+**Sprint Exit Criteria:** PARTIAL — signed ingestion, Admin simulator start/status/reset, authenticated action/approval paths, active-policy read, tenant-scoped operational health read, an explicit typed web client, and generated OpenAPI path validation are implemented; generated client generation and future mutation coverage remain pending.
 
 **Phase 12 Exit Criteria:** PARTIAL — API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; generated client generation and future mutation coverage remain pending.
 

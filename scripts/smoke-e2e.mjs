@@ -71,6 +71,20 @@ if (authToken) {
     if (!Array.isArray(run.case_ids) || typeof run.case_count !== 'number') {
       throw new Error('simulator E2E did not return typed case facts');
     }
+    if (
+      Array.isArray(configuration.duplicate_event_indices) &&
+      configuration.duplicate_event_indices.length > 0 &&
+      (typeof run.duplicate_event_count !== 'number' || run.duplicate_event_count < 1)
+    ) {
+      throw new Error('simulator E2E did not persist duplicate-event facts');
+    }
+    if (
+      Array.isArray(configuration.assisted_recovery_indices) &&
+      configuration.assisted_recovery_indices.length > 0 &&
+      run.scenario_counts?.assisted_recovery !== configuration.assisted_recovery_indices.length
+    ) {
+      throw new Error('simulator E2E did not produce the requested assisted-recovery outcomes');
+    }
     const storedRun = await assertAuthenticatedJson(
       `${apiBaseUrl}/api/v1/simulator/runs/${encodeURIComponent(run.run_id)}`,
       authToken,
@@ -88,6 +102,13 @@ if (authToken) {
     const dashboard = await assertAuthenticatedJson(`${apiBaseUrl}/api/v1/dashboard`, authToken);
     if (!dashboard.metrics || typeof dashboard.metrics !== 'object') {
       throw new Error('simulator E2E dashboard metrics were not typed persisted facts');
+    }
+    if (
+      Array.isArray(configuration.assisted_recovery_indices) &&
+      configuration.assisted_recovery_indices.length > 0 &&
+      typeof dashboard.metrics.assisted_recovered_minor_units !== 'number'
+    ) {
+      throw new Error('simulator E2E dashboard did not expose assisted recovery metrics');
     }
     console.log('Authenticated RecoveryOS simulator vertical-slice E2E passed.');
   }

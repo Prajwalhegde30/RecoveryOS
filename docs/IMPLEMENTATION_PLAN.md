@@ -1026,6 +1026,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Produce root cause, deterministic probability, expected recoverable amount, priority, and recommendation.
 - [ ] Apply policy and schedule a permitted action.
 - [ ] Trigger payment success before execution and verify last-moment cancellation, reconciliation, attribution, audit, and dashboard update.
+  - [x] Add an authenticated API integration regression that schedules a permitted action, ingests a signed provider success before execution, and verifies the tenant-scoped job/action are cancelled.
 - [x] Repeat with action execution followed by success and verify assisted recovery using the simulator's normal policy, durable job, worker, provider, and reconciliation paths.
 
 **Files / Modules Affected:** Cross-cutting application path, simulator, E2E fixtures, API/web.

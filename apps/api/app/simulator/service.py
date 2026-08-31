@@ -7,19 +7,25 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.actions.service import ActionCommandService, ActionCommandStatus
+from app.ai.contracts import ActionType
 from app.ai.service import AIRecommendationService
 from app.attribution.service import AttributionConfig, AttributionService
 from app.cases.identity import RECOVERABLE_EVENT_TYPES
 from app.cases.service import RecoveryCaseService
 from app.cases.state_machine import is_open
+from app.config import get_settings
 from app.customers.service import CustomerOptOutService
 from app.events.contracts import EventIngestionResult, RevenueEvent, RevenueEventType
 from app.events.service import EventIngestionService
 from app.integrations.contracts import PaymentStatus
-from app.integrations.simulated import SimulatedPaymentProvider
+from app.integrations.executor import ProviderActionExecutor
+from app.integrations.simulated import SimulatedMessagingProvider, SimulatedPaymentProvider
+from app.jobs.service import JobConfig, JobService
 from app.persistence.models import (
     AttributionRecord,
     Merchant,
+    PaymentAttempt,
     Recommendation,
     RecoveryCase,
     RecoveryCaseStatus,
@@ -27,9 +33,11 @@ from app.persistence.models import (
 from app.persistence.models import (
     RevenueEvent as RevenueEventRecord,
 )
+from app.policy.service import PolicyService
 from app.reconciliation.service import PaymentReconciliationService
 from app.scoring.economics import ScoringConfig
 from app.scoring.service import CaseAnalysisService
+from app.workers.service import ProviderPreflightChecker, WorkerService
 
 
 @dataclass(frozen=True)
@@ -160,7 +168,10 @@ class SimulatorService:
                 scenario_counts["incident"] = scenario_counts.get("incident", 0) + 1
             recovery_kind = self._recovery_kind(index)
             if recovery_kind is not None:
-                success_event = self._success_event(index, base_event)
+                action_time = None
+                if recovery_kind == "assisted_recovery" and case is not None:
+                    action_time = self._execute_assisted_action(case, base_event.occurred_at)
+                success_event = self._success_event(index, base_event, occurred_at=action_time)
                 self._process_auxiliary_event(ingester, success_event)
                 event_ids.append(success_event.event_id)
                 success_count += 1
@@ -274,7 +285,13 @@ class SimulatorService:
     def _incident_event(self, index: int, base_event: RevenueEvent) -> RevenueEvent:
         return self._simple_event(index, base_event, RevenueEventType.INCIDENT_DETECTED, "incident")
 
-    def _success_event(self, index: int, base_event: RevenueEvent) -> RevenueEvent:
+    def _success_event(
+        self,
+        index: int,
+        base_event: RevenueEvent,
+        *,
+        occurred_at: datetime | None = None,
+    ) -> RevenueEvent:
         return base_event.model_copy(
             update={
                 "event_id": f"sim-{self.config.seed}-success-{index}",
@@ -284,8 +301,85 @@ class SimulatorService:
                 # reconciliation aligned with the production event contract.
                 "payment_id": base_event.payment_id,
                 "failure_code": None,
+                "occurred_at": occurred_at or base_event.occurred_at,
             }
         )
+
+    def _execute_assisted_action(
+        self, case: RecoveryCase | None, case_event_time: datetime
+    ) -> datetime:
+        if case is None:
+            raise ValueError("assisted recovery requires an associated recovery case")
+        merchant_id = case.merchant_id
+        case_id = case.id
+        self.session.rollback()
+        active = PolicyService(self.session, merchant_id).active()
+        if active is None:
+            raise ValueError("assisted recovery requires an active merchant policy")
+        # Keep synthetic action chronology inside the case attribution window. The
+        # simulator must be reproducible even when it is run on a different day.
+        action_time = case_event_time.astimezone(UTC) + timedelta(seconds=1)
+        settings = get_settings()
+        self._payment_provider.set_status(
+            merchant_id,
+            self._payment_id(case_id),
+            PaymentStatus.FAILED,
+        )
+        result = ActionCommandService(
+            self.session,
+            merchant_id,
+            JobConfig(
+                max_attempts=self.config.max_recovery_attempts,
+                lease_seconds=settings.job_lease_seconds,
+                backoff_base_seconds=settings.job_backoff_base_seconds,
+                backoff_max_seconds=settings.job_backoff_max_seconds,
+            ),
+        ).request(
+            case_id=case_id,
+            action_type=ActionType.SEND_EMAIL,
+            idempotency_key=f"sim-{self.config.seed}-assisted-{case_id}",
+            due_at=action_time,
+            actor_id="simulator",
+            actor_role="ADMIN",
+        )
+        if result.status != ActionCommandStatus.SCHEDULED:
+            raise ValueError(f"assisted recovery policy did not schedule action: {result.reason}")
+        self.session.rollback()
+        worker = WorkerService(
+            self.session,
+            merchant_id,
+            JobService(
+                self.session,
+                merchant_id,
+                JobConfig(
+                    max_attempts=self.config.max_recovery_attempts,
+                    lease_seconds=settings.job_lease_seconds,
+                    backoff_base_seconds=settings.job_backoff_base_seconds,
+                    backoff_max_seconds=settings.job_backoff_max_seconds,
+                ),
+            ),
+            ProviderActionExecutor(
+                payment=self._payment_provider,
+                messaging=SimulatedMessagingProvider(),
+                merchant_id=merchant_id,
+            ),
+            ProviderPreflightChecker(self.session, merchant_id, self._payment_provider),
+        )
+        execution = worker.process_once(now=action_time)
+        if execution.status != "succeeded":
+            raise ValueError(f"assisted recovery action did not execute: {execution.reason_code}")
+        return action_time
+
+    def _payment_id(self, case_id: str) -> str:
+        payment = self.session.scalar(
+            select(PaymentAttempt.external_payment_id).where(
+                PaymentAttempt.merchant_id.in_(self.config.merchant_ids),
+                PaymentAttempt.recovery_case_id == case_id,
+            )
+        )
+        if payment is None:
+            raise ValueError("assisted recovery case has no payment identity")
+        return payment
 
     def _simple_event(
         self,

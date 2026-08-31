@@ -1,7 +1,10 @@
+from datetime import UTC, datetime, time
+
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.ai.contracts import ActionType
 from app.persistence.base import Base
 from app.persistence.models import (
     AttributionRecord,
@@ -12,6 +15,8 @@ from app.persistence.models import (
     RecoveryCaseStatus,
     RevenueEvent,
 )
+from app.policy.schema import Channel, MerchantPolicyDocument
+from app.policy.service import PolicyService
 from app.scoring.economics import ScoringConfig
 from app.simulator.service import SimulatorConfig, SimulatorService
 
@@ -37,10 +42,36 @@ def simulator_config(seed: int = 42) -> SimulatorConfig:
     )
 
 
+def activate_simulator_policies(session: Session) -> None:
+    now = datetime.now(UTC)
+    for merchant_id in ("merchant_simulator", "merchant_simulator_2"):
+        policy = MerchantPolicyDocument(
+            timezone="UTC",
+            max_attempts=3,
+            min_contact_interval_minutes=0,
+            quiet_hours_start=time((now.hour + 1) % 24),
+            quiet_hours_end=time((now.hour + 2) % 24),
+            approval_threshold_minor_units=10_000_000,
+            max_contacts_per_case=3,
+            max_contacts_per_customer=3,
+            sequence_duration_minutes=60,
+            enabled_channels={Channel.EMAIL},
+            retry_max_attempts=2,
+            incident_suppression_enabled=True,
+            fallback_action=ActionType.SEND_EMAIL,
+        )
+        version = PolicyService(session, merchant_id).create_draft(policy, actor_id="simulator")
+        version_id = version.id
+        session.rollback()
+        PolicyService(session, merchant_id).activate(version_id, actor_id="simulator")
+
+
 def test_seeded_simulator_uses_normal_paths_and_reports_persisted_facts() -> None:
     engine = create_engine("sqlite://", poolclass=StaticPool)
     Base.metadata.create_all(engine)
     with Session(engine) as session:
+        SimulatorService(session, simulator_config())._ensure_merchants()
+        activate_simulator_policies(session)
         result = SimulatorService(session, simulator_config()).run()
 
         assert result.label == "synthetic_simulator_data"
@@ -53,7 +84,8 @@ def test_seeded_simulator_uses_normal_paths_and_reports_persisted_facts() -> Non
             "duplicate_event": 1,
             "high_value": 1,
             "incident": 1,
-            "natural_recovery": 2,
+            "assisted_recovery": 1,
+            "natural_recovery": 1,
             "opt_out": 1,
             "provider_failure": 1,
         }
@@ -62,7 +94,9 @@ def test_seeded_simulator_uses_normal_paths_and_reports_persisted_facts() -> Non
         assert session.scalar(select(func.count()).select_from(PaymentAttempt)) == 6
         attributions = session.scalars(select(AttributionRecord)).all()
         assert len(attributions) == 6
-        assert sum(record.outcome == "NATURAL_RECOVERY" for record in attributions) == 2
+        assert sum(record.outcome == "NATURAL_RECOVERY" for record in attributions) == 1
+        assert sum(record.outcome == "ASSISTED_RECOVERY" for record in attributions) == 1
+        assert sum(record.qualifying_action_id is not None for record in attributions) == 1
         assert session.scalar(select(func.count()).select_from(Recommendation)) == 6
         assert all(event.provider == "simulator" for event in session.scalars(select(RevenueEvent)))
         recovered_cases = session.scalars(
@@ -80,6 +114,8 @@ def test_same_seed_reproduces_event_inputs_without_duplicate_domain_effects() ->
     engine = create_engine("sqlite://", poolclass=StaticPool)
     Base.metadata.create_all(engine)
     with Session(engine) as session:
+        SimulatorService(session, simulator_config())._ensure_merchants()
+        activate_simulator_policies(session)
         first = SimulatorService(session, simulator_config()).run()
         session.rollback()
         second = SimulatorService(session, simulator_config()).run()

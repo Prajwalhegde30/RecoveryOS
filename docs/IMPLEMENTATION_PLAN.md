@@ -988,6 +988,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Add an explicit opt-in authenticated HTTP simulator flow that verifies labeled durable run status, tenant-scoped cases, and derived dashboard metrics without fixed totals.
   - [x] Assert configured duplicate-event scenarios through the live HTTP harness without allowing duplicate financial effects.
   - [x] Verify an assisted-recovery simulator scenario reaches the existing durable WorkerService/provider/reconciliation path and exposes derived assisted metrics.
+  - [x] Verify an actual worker CLI process is observed through the authenticated operational-health heartbeat check.
 
 **Files / Modules Affected:** `apps/api/tests`, `apps/web` tests, shared fixtures/scripts, CI.
 

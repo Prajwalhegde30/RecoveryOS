@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.actions.service import ActionCommandService
@@ -19,8 +20,10 @@ from app.api.schemas import (
     ActionCommandResponse,
     CaseDetailResponse,
     CaseSummaryResponse,
+    ComponentHealthResponse,
     DashboardResponse,
     IncidentResponse,
+    OperationalHealthResponse,
     SimulatorRunRequest,
     SimulatorRunResponse,
     TimelineResponse,
@@ -28,6 +31,7 @@ from app.api.schemas import (
 from app.attribution.metrics import RecoveryMetricsService
 from app.auth.service import AuthContext
 from app.config import get_settings
+from app.integrations.simulated import SimulatedMessagingProvider, SimulatedPaymentProvider
 from app.jobs.service import JobConfig
 from app.persistence.models import (
     AuditEvent,
@@ -39,6 +43,7 @@ from app.persistence.models import (
     Recommendation,
     RecoveryAction,
     RecoveryCase,
+    ScheduledJob,
 )
 from app.simulator.service import SimulatorConfig, SimulatorService
 
@@ -69,6 +74,61 @@ def dashboard(
             "recovered_case_count": metrics.recovered_case_count,
             "recovery_rate_percent": metrics.recovery_rate_percent,
             "median_time_to_recovery_seconds": metrics.median_time_to_recovery_seconds,
+        },
+    )
+
+
+@router.get("/health/operational", response_model=OperationalHealthResponse)
+def operational_health(
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> OperationalHealthResponse:
+    """Expose safe tenant-scoped signals without claiming worker heartbeats."""
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    pending_jobs = int(
+        session.scalar(
+            select(func.count())
+            .select_from(ScheduledJob)
+            .where(ScheduledJob.merchant_id == merchant_id, ScheduledJob.status == "PENDING")
+        )
+        or 0
+    )
+    stale_claims = int(
+        session.scalar(
+            select(func.count())
+            .select_from(ScheduledJob)
+            .where(
+                ScheduledJob.merchant_id == merchant_id,
+                ScheduledJob.status == "CLAIMED",
+                ScheduledJob.lease_until < now,
+            )
+        )
+        or 0
+    )
+    payment_health = SimulatedPaymentProvider().health()
+    messaging_health = SimulatedMessagingProvider().health()
+    return OperationalHealthResponse(
+        merchant_id=merchant_id,
+        checked_at=datetime.now(UTC),
+        components={
+            "database": ComponentHealthResponse(status="healthy", detail="tenant query succeeded"),
+            "worker": ComponentHealthResponse(
+                status="degraded" if stale_claims else "unknown",
+                detail=(
+                    "claimed jobs have expired leases"
+                    if stale_claims
+                    else "worker heartbeat is not registered in this API process"
+                ),
+                pending_jobs=pending_jobs,
+                stale_claims=stale_claims,
+            ),
+            payment_health.provider: ComponentHealthResponse(
+                status=payment_health.status.value, detail=payment_health.detail
+            ),
+            messaging_health.provider: ComponentHealthResponse(
+                status=messaging_health.status.value, detail=messaging_health.detail
+            ),
         },
     )
 

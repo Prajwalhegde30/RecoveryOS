@@ -74,6 +74,19 @@ class DashboardResponse(BaseModel):
     metrics: dict[str, int | None]
 
 
+class ComponentHealthResponse(BaseModel):
+    status: str
+    detail: str
+    pending_jobs: int | None = None
+    stale_claims: int | None = None
+
+
+class OperationalHealthResponse(BaseModel):
+    merchant_id: str
+    checked_at: datetime
+    components: dict[str, ComponentHealthResponse]
+
+
 class SimulatorRunRequest(BaseModel):
     seed: int
     transaction_count: int

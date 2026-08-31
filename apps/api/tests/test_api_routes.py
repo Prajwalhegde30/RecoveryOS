@@ -180,6 +180,9 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
     try:
         dashboard = client.get("/api/v1/dashboard", headers=auth_headers())
         assert dashboard.status_code == 200
+        operational = client.get("/api/v1/health/operational", headers=auth_headers())
+        assert operational.status_code == 200
+        assert operational.json()["components"]["database"]["status"] == "healthy"
         cases = client.get("/api/v1/cases", headers=auth_headers())
         assert cases.status_code == 200
         assert cases.json()[0]["amount_at_risk_minor_units"] == 2500

@@ -775,12 +775,13 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Add a registered-action command endpoint for Operator/Admin users with server-side policy rechecks, persisted policy decisions, policy-version traceability, and durable idempotent scheduling; provider execution remains worker-owned.
 - [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.
 - [ ] Add worker and integration health endpoints.
+  - [x] Add tenant-scoped operational health reporting for database query status, pending jobs, expired leases, and safe simulated provider status; worker heartbeat remains explicitly unknown until a worker heartbeat registry exists.
 
 **Files / Modules Affected:** API routes/dependencies, simulator/application services, health checks.
 
 **Tests:** Signature rejection, duplicate webhook, unauthorized simulator/action, stale worker, dependency degraded, case not found, safe error payload.
 
-**Sprint Exit Criteria:** PARTIAL — the authenticated action command path enforces role membership, policy evaluation, policy-version persistence, and durable action/job idempotency; simulator lifecycle, approval resolution, worker/integration health, and full OpenAPI client coverage remain pending.
+**Sprint Exit Criteria:** PARTIAL — the authenticated action command path and tenant-scoped operational health read are implemented; simulator lifecycle, approval resolution, real worker/integration heartbeat health, and full OpenAPI client coverage remain pending.
 
 **Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; authenticated mutation, simulator lifecycle, worker/integration health, and full OpenAPI client coverage remain pending.
 
@@ -919,6 +920,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Implement structured logs with correlation and entity IDs; redact secrets/PII.
 - [ ] Implement webhook, case, policy, job, worker, provider, AI, incident, action, and recovery metrics.
 - [ ] Implement liveness/readiness and dependency health states.
+  - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.
 - [ ] Add error tracking hooks, stuck-job alerts, queue/backlog metrics, AI fallback metrics, and provider failure visibility.
 - [ ] Add optional trace spans behind configuration without sensitive payloads.
 
@@ -926,7 +928,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Correlation propagation, redaction, health state, metric increments, worker absence, provider outage, AI fallback spike, trace disabled/enabled.
 
-**Sprint Exit Criteria:** An operator can distinguish healthy, degraded, unavailable, stale, and failed subsystems with correlation IDs.
+**Sprint Exit Criteria:** PARTIAL — an authenticated operator can inspect tenant-scoped database, job, lease, and simulated-provider signals with correlation IDs; worker heartbeat, real integration health, metrics, alerts, and deeper structured observability remain pending.
 
 **Phase 15 Exit Criteria:** Security, audit, health, metrics, structured logging, and operational visibility meet PRD/NFR expectations.
 

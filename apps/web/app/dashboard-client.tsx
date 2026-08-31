@@ -17,6 +17,8 @@ import {
   LoadingState,
   MetricBarChart,
   MetricCard,
+  IntegrationHealthCard,
+  PolicySummaryCard,
 } from '@recoveryos/ui';
 import {
   CaseDetail,
@@ -362,69 +364,8 @@ export function DashboardClient() {
               }
             />
             <div className="content-grid">
-              <Card>
-                <CardHeader>
-                  <CardTitle>System health</CardTitle>
-                  <Badge
-                    tone={
-                      health &&
-                      Object.values(health.components).some((item) => item.status === 'degraded')
-                        ? 'warning'
-                        : 'success'
-                    }
-                  >
-                    {health ? 'Live checks' : 'Unavailable'}
-                  </Badge>
-                </CardHeader>
-                {health ? (
-                  <div className="data-list">
-                    {Object.entries(health.components).map(([name, component]) => (
-                      <div className="data-row" key={name}>
-                        <div>
-                          <p>{name.replaceAll('_', ' ')}</p>
-                          <small>{component.detail}</small>
-                        </div>
-                        <Badge tone={component.status === 'healthy' ? 'success' : 'warning'}>
-                          {component.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState>Operational health is unavailable.</EmptyState>
-                )}
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Active policy</CardTitle>
-                  <Badge>{policy ? `v${policy.version}` : 'Unavailable'}</Badge>
-                </CardHeader>
-                {policy ? (
-                  <div className="data-list">
-                    <div className="data-row">
-                      <div>
-                        <p>Policy status</p>
-                        <small>Server-evaluated policy controls action eligibility.</small>
-                      </div>
-                      <Badge tone={policy.status === 'ACTIVE' ? 'success' : 'warning'}>
-                        {policy.status}
-                      </Badge>
-                    </div>
-                    <div className="data-row">
-                      <div>
-                        <p>Configured channels</p>
-                        <small>
-                          {Array.isArray(policy.policy.enabled_channels)
-                            ? policy.policy.enabled_channels.join(', ')
-                            : 'Not exposed'}
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyState>No active policy is available.</EmptyState>
-                )}
-              </Card>
+              <IntegrationHealthCard health={health?.components ?? null} />
+              <PolicySummaryCard policy={policy} />
             </div>
             {detailLoading ? <LoadingState label="Loading case details…" /> : null}
             {detailError ? <ErrorState message={detailError} /> : null}

@@ -543,6 +543,36 @@ def test_simulator_endpoint_reuses_seeded_event_identity() -> None:
         session.close()
 
 
+def test_simulator_endpoint_rejects_non_recoverable_event_type() -> None:
+    session = make_session()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    client = TestClient(app)
+    payload = {
+        "seed": 713,
+        "transaction_count": 1,
+        "amounts_minor_units": [1000],
+        "payment_methods": ["upi"],
+        "failure_codes": ["UPI_TIMEOUT"],
+        "event_types": ["payment.succeeded"],
+    }
+    try:
+        response = client.post("/api/v1/simulator/runs", json=payload, headers=auth_headers())
+        assert response.status_code == 422
+        assert "recoverable event types" in response.json()["detail"]
+        assert session.scalar(select(ScheduledJob)) is None
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
 def test_action_command_evaluates_policy_and_is_idempotent() -> None:
     session = make_session()
     activate_policy(session)

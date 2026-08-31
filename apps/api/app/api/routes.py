@@ -501,25 +501,25 @@ def run_simulator(
     # The simulator owns its application-service transactions; lifecycle state is
     # persisted before/after the generated facts and is never a source of money.
     session.rollback()
-    config = SimulatorConfig(
-        seed=request.seed,
-        merchant_ids=(merchant_id,),
-        transaction_count=request.transaction_count,
-        amounts_minor_units=tuple(request.amounts_minor_units),
-        payment_methods=tuple(request.payment_methods),
-        failure_codes=tuple(request.failure_codes),
-        event_types=tuple(request.event_types),
-        high_value_indices=frozenset(request.high_value_indices),
-        high_value_amount_minor_units=request.high_value_amount_minor_units,
-        duplicate_event_indices=frozenset(request.duplicate_event_indices),
-        opt_out_indices=frozenset(request.opt_out_indices),
-        incident_indices=frozenset(request.incident_indices),
-        natural_recovery_indices=frozenset(request.natural_recovery_indices),
-        assisted_recovery_indices=frozenset(request.assisted_recovery_indices),
-        provider_failure_indices=frozenset(request.provider_failure_indices),
-        attribution_window_seconds=request.attribution_window_seconds,
-    )
     try:
+        config = SimulatorConfig(
+            seed=request.seed,
+            merchant_ids=(merchant_id,),
+            transaction_count=request.transaction_count,
+            amounts_minor_units=tuple(request.amounts_minor_units),
+            payment_methods=tuple(request.payment_methods),
+            failure_codes=tuple(request.failure_codes),
+            event_types=tuple(request.event_types),
+            high_value_indices=frozenset(request.high_value_indices),
+            high_value_amount_minor_units=request.high_value_amount_minor_units,
+            duplicate_event_indices=frozenset(request.duplicate_event_indices),
+            opt_out_indices=frozenset(request.opt_out_indices),
+            incident_indices=frozenset(request.incident_indices),
+            natural_recovery_indices=frozenset(request.natural_recovery_indices),
+            assisted_recovery_indices=frozenset(request.assisted_recovery_indices),
+            provider_failure_indices=frozenset(request.provider_failure_indices),
+            attribution_window_seconds=request.attribution_window_seconds,
+        )
         lifecycle = SimulatorLifecycleService(session, merchant_id)
         run = lifecycle.start(
             config,

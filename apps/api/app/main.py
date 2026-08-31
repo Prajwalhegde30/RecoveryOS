@@ -35,12 +35,15 @@ _simulated_payment_provider = SimulatedPaymentProvider()
 async def safe_unhandled_exception(request: Request, _: Exception) -> Response:
     """Return a safe correlated response without exposing internal details."""
     correlation_id = getattr(request.state, "correlation_id", "unknown")
-    logging.getLogger("recoveryos.request").exception(
+    # Keep the application log safe as well as the client response. Raw
+    # exception text and tracebacks can contain provider payloads or secrets.
+    logging.getLogger("recoveryos.request").error(
         "unhandled_request_error",
         extra={
             "correlation_id": correlation_id,
             "method": request.method,
             "path": request.url.path,
+            "error_type": "unhandled_exception",
         },
     )
     return JSONResponse(

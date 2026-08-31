@@ -37,7 +37,7 @@ def test_high_risk_request_family_is_rate_limited() -> None:
         settings.rate_limit_window_seconds = previous_window
 
 
-def test_unhandled_error_response_is_safe_and_correlated() -> None:
+def test_unhandled_error_response_and_log_are_safe_and_correlated(caplog) -> None:
     request = Request(
         {
             "type": "http",
@@ -51,10 +51,15 @@ def test_unhandled_error_response_is_safe_and_correlated() -> None:
         }
     )
     request.state.correlation_id = "workflow-safe"
-    response = asyncio.run(
-        safe_unhandled_exception(request, RuntimeError("secret database password"))
-    )
+    with caplog.at_level("ERROR", logger="recoveryos.request"):
+        response = asyncio.run(
+            safe_unhandled_exception(request, RuntimeError("secret database password"))
+        )
     assert response.status_code == 500
     assert response.body is not None
     assert b"secret database password" not in response.body
     assert b"workflow-safe" in response.body
+    assert "secret database password" not in caplog.text
+    assert any(
+        getattr(record, "correlation_id", None) == "workflow-safe" for record in caplog.records
+    )

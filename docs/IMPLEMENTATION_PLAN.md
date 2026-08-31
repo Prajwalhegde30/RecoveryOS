@@ -917,6 +917,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Add startup environment validation for supported auth modes and mandatory production JWKS/webhook configuration; secret rotation/revocation hooks, TLS/deployment checks, and encrypted managed storage remain deployment work.
 - [ ] Minimize PII, redact logs, and enforce role-based customer-context access.
   - [x] Prevent raw exception messages and tracebacks from entering the request log while retaining structured correlation and safe error metadata.
+  - [x] Prevent simulator failure details from persisting raw exception text; expose only a safe operator message while retaining the correlated failure audit event.
 - [ ] Audit policy/config/integration changes, approvals, manual actions, simulator runs, reconciliations, security events, and state changes.
 - [x] Add safe correlated error responses that redact internal exception details; dependency/security scanning remains pending.
 

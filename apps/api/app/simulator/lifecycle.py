@@ -105,12 +105,12 @@ class SimulatorLifecycleService:
                 run.completed_at = _utc_now()
                 self._audit(run, "SIMULATOR_RUN_COMPLETED", actor_id, correlation_id)
             return SimulatorLifecycleResult(run_id, SimulatorRunStatus.COMPLETED, result)
-        except Exception as exc:
+        except Exception:
             self.session.rollback()
             with self.session.begin():
                 run = self._locked(run_id)
                 run.status = SimulatorRunStatus.FAILED
-                run.error_safe = str(exc)[:512]
+                run.error_safe = "simulator execution failed; inspect the correlated audit event"
                 run.completed_at = _utc_now()
                 self._audit(run, "SIMULATOR_RUN_FAILED", actor_id, correlation_id)
             raise

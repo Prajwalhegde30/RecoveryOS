@@ -8,12 +8,14 @@ from app.ai.contracts import ActionType
 from app.persistence.base import Base
 from app.persistence.models import (
     AttributionRecord,
+    AuditEvent,
     Obligation,
     PaymentAttempt,
     Recommendation,
     RecoveryCase,
     RecoveryCaseStatus,
     RevenueEvent,
+    SimulatorRun,
 )
 from app.policy.schema import Channel, MerchantPolicyDocument
 from app.policy.service import PolicyService
@@ -153,3 +155,48 @@ def test_simulator_rejects_overlapping_or_out_of_range_scenarios() -> None:
         assert "within transaction_count" in str(exc)
     else:
         raise AssertionError("out-of-range scenarios must be rejected")
+
+
+def test_simulator_failure_persists_only_safe_error_detail(monkeypatch) -> None:
+    from app.simulator.lifecycle import SimulatorLifecycleService, SimulatorRunStatus
+
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        SimulatorService(session, simulator_config())._ensure_merchants()
+
+        def fail_run(self):
+            raise RuntimeError("provider secret payload must not be persisted")
+
+        monkeypatch.setattr("app.simulator.lifecycle.SimulatorService.run", fail_run)
+        service = SimulatorLifecycleService(session, "merchant_simulator")
+        try:
+            service.start(
+                simulator_config(),
+                run_key="safe-failure",
+                actor_id="simulator-admin",
+                correlation_id="safe-failure-correlation",
+            )
+        except RuntimeError as exc:
+            assert "provider secret payload" in str(exc)
+        else:
+            raise AssertionError("simulator failure must be raised to the caller")
+
+        run = session.scalar(
+            select(SimulatorRun).where(
+                SimulatorRun.merchant_id == "merchant_simulator",
+                SimulatorRun.run_key == "safe-failure",
+            )
+        )
+        assert run is not None
+        assert run.status == SimulatorRunStatus.FAILED
+        assert run.error_safe == "simulator execution failed; inspect the correlated audit event"
+        assert "provider secret payload" not in run.error_safe
+        audit = session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.entity_id == run.id,
+                AuditEvent.event_type == "SIMULATOR_RUN_FAILED",
+            )
+        )
+        assert audit is not None
+        assert audit.correlation_id == "safe-failure-correlation"

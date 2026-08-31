@@ -241,6 +241,10 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
             ]
             == OTHER_MERCHANT_ID
         )
+        other_metrics = client.get("/api/v1/health/metrics", headers=other_merchant_headers())
+        assert other_metrics.status_code == 200
+        assert other_metrics.json()["merchant_id"] == OTHER_MERCHANT_ID
+        assert other_metrics.json()["metrics"]["cases_total"] == 0
         other_dashboard = client.get("/api/v1/dashboard", headers=other_merchant_headers())
         assert other_dashboard.status_code == 200
         assert other_dashboard.json()["metrics"]["revenue_at_risk_minor_units"] == 0

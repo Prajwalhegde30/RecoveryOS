@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CaseSummaryResponse(BaseModel):
@@ -69,3 +69,32 @@ class DashboardResponse(BaseModel):
     merchant_id: str
     freshness: str
     metrics: dict[str, int | None]
+
+
+class SimulatorRunRequest(BaseModel):
+    seed: int
+    transaction_count: int
+    amounts_minor_units: list[int]
+    payment_methods: list[str]
+    failure_codes: list[str]
+    high_value_indices: list[int] = Field(default_factory=list)
+    high_value_amount_minor_units: int | None = None
+    duplicate_event_indices: list[int] = Field(default_factory=list)
+    opt_out_indices: list[int] = Field(default_factory=list)
+    incident_indices: list[int] = Field(default_factory=list)
+    natural_recovery_indices: list[int] = Field(default_factory=list)
+    assisted_recovery_indices: list[int] = Field(default_factory=list)
+    provider_failure_indices: list[int] = Field(default_factory=list)
+
+
+class SimulatorRunResponse(BaseModel):
+    seed: int
+    label: str
+    persisted_event_count: int
+    duplicate_event_count: int
+    case_count: int
+    recommendation_count: int
+    success_event_count: int
+    scenario_counts: dict[str, int]
+    event_ids: tuple[str, ...]
+    case_ids: tuple[str, ...]

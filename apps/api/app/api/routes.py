@@ -13,6 +13,8 @@ from app.api.schemas import (
     CaseSummaryResponse,
     DashboardResponse,
     IncidentResponse,
+    SimulatorRunRequest,
+    SimulatorRunResponse,
     TimelineResponse,
 )
 from app.attribution.metrics import RecoveryMetricsService
@@ -27,6 +29,7 @@ from app.persistence.models import (
     RecoveryAction,
     RecoveryCase,
 )
+from app.simulator.service import SimulatorConfig, SimulatorService
 
 router = APIRouter(prefix="/api/v1", tags=["recovery"])
 db_session_dependency = Depends(get_db_session)
@@ -203,6 +206,53 @@ def incidents(
             )
         )
     return responses
+
+
+@router.post("/simulator/runs", response_model=SimulatorRunResponse)
+def run_simulator(
+    request: SimulatorRunRequest,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> SimulatorRunResponse:
+    # The simulator owns its application-service transactions; discard any read
+    # transaction opened by a prior request on a reused test/session boundary.
+    session.rollback()
+    try:
+        result = SimulatorService(
+            session,
+            SimulatorConfig(
+                seed=request.seed,
+                merchant_ids=(merchant_id,),
+                transaction_count=request.transaction_count,
+                amounts_minor_units=tuple(request.amounts_minor_units),
+                payment_methods=tuple(request.payment_methods),
+                failure_codes=tuple(request.failure_codes),
+                high_value_indices=frozenset(request.high_value_indices),
+                high_value_amount_minor_units=request.high_value_amount_minor_units,
+                duplicate_event_indices=frozenset(request.duplicate_event_indices),
+                opt_out_indices=frozenset(request.opt_out_indices),
+                incident_indices=frozenset(request.incident_indices),
+                natural_recovery_indices=frozenset(request.natural_recovery_indices),
+                assisted_recovery_indices=frozenset(request.assisted_recovery_indices),
+                provider_failure_indices=frozenset(request.provider_failure_indices),
+            ),
+        ).run()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return SimulatorRunResponse(
+        seed=result.seed,
+        label=result.label,
+        persisted_event_count=result.persisted_event_count,
+        duplicate_event_count=result.duplicate_event_count,
+        case_count=result.case_count,
+        recommendation_count=result.recommendation_count,
+        success_event_count=result.success_event_count,
+        scenario_counts=result.scenario_counts,
+        event_ids=result.event_ids,
+        case_ids=result.case_ids,
+    )
 
 
 def _summary(case: RecoveryCase, obligation: Obligation) -> CaseSummaryResponse:

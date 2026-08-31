@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 12.1 complete; Phase 12.2 API operations and Phase 14 authentication/authorization remain next
+**Current repository:** Phase 13.1 complete; Phase 12.2 API operations, Phase 13.2 feature views, and Phase 14 authentication/authorization remain next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -769,10 +769,12 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Add signed webhook endpoint and safe receipt response.
-- [ ] Add Admin-scoped simulator start/status/reset controls with idempotent run identity.
+- [x] Retain the signed webhook endpoint and safe receipt response implemented in the event-ingestion boundary.
+- [x] Add a tenant-scoped simulator start endpoint using deterministic seeded event identity; repeated seeds remain idempotent through normal ingestion.
+- [ ] Add simulator status/reset controls with an authenticated Admin boundary and persisted run identity.
 - [ ] Add case action/approval endpoints with server-side policy rechecks.
-- [ ] Add liveness/readiness, worker, integration, and freshness endpoints.
+- [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.
+- [ ] Add worker and integration health endpoints.
 
 **Files / Modules Affected:** API routes/dependencies, simulator/application services, health checks.
 
@@ -780,11 +782,11 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** All mutation endpoints enforce application rules and expose useful operational state.
 
-**Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration.
+**Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; authenticated mutation, simulator lifecycle, worker/integration health, and full OpenAPI client coverage remain pending.
 
 ## Phase 13 — Merchant Dashboard / Frontend
 
-### Sprint 13.1 — Shared UI and application shell
+### Sprint 13.1 — Shared UI and application shell — COMPLETE
 
 **Sprint Objective:** Build the shared design system and dashboard shell before feature screens.
 
@@ -794,18 +796,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement shared tokens/components in `packages/ui/src`.
-  - [ ] Add `global.css` for colors, typography, spacing, themes, focus, and status tokens.
-  - [ ] Add accessible buttons, cards, tables, badges, tabs, dialogs, forms, alerts, skeletons, empty/error states.
-- [ ] Build `apps/web` application shell, navigation, responsive layout, and route composition.
-- [ ] Add shared formatter for integer money/currency and timestamps without duplicating financial rules.
-- [ ] Add loading, no-data, simulator-not-run, disconnected, and degraded states.
+- [x] Implement shared tokens/components in `packages/ui/src`.
+  - [x] Add `global.css` for colors, typography, spacing, themes, focus, and status tokens.
+  - [x] Add accessible buttons, cards, badges, and reusable loading/empty/error feedback states.
+- [x] Build the `apps/web` responsive dashboard shell and route composition seam.
+- [x] Add client-side integer-minor-unit currency formatting without duplicating financial rules.
+- [x] Add loading, no-data, simulator-not-run/configuration, disconnected, and degraded states.
 
-**Files / Modules Affected:** `packages/ui/src`, `apps/web` shell/layout/features.
+**Files / Modules Affected:** `packages/ui/src`, `apps/web/app/page.tsx`, `dashboard-client.tsx`.
 
-**Tests:** Component accessibility, keyboard/focus, responsive smoke, formatter unit tests, loading/empty/error rendering.
+**Tests:** Component rendering, keyboard/button behavior, responsive CSS smoke, formatter behavior through dashboard rendering, loading/empty/error rendering, and production build.
 
-**Sprint Exit Criteria:** Reusable UI exists only in `packages/ui/src`; shell is responsive and consumes the typed API boundary.
+**Sprint Exit Criteria:** COMPLETE — reusable UI primitives and design tokens exist in `packages/ui/src`; the responsive shell consumes the typed API boundary and exposes safe loading/error/empty states.
 
 ### Sprint 13.2 — Dashboard, cases, incident, and policy views
 

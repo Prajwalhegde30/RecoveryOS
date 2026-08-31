@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 from collections.abc import Generator
 from datetime import UTC, datetime, time, timedelta
 
@@ -10,6 +12,7 @@ from app.ai.contracts import ActionType
 from app.api.dependencies import get_db_session
 from app.auth.service import create_local_demo_token
 from app.config import get_settings
+from app.events.contracts import RevenueEvent, RevenueEventType
 from app.main import app
 from app.persistence.base import Base
 from app.persistence.models import (
@@ -253,6 +256,80 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
 def test_versioned_routes_require_explicit_tenant_scope() -> None:
     response = TestClient(app).get("/api/v1/cases")
     assert response.status_code == 401
+
+
+def test_authenticated_signed_event_to_reconciled_dashboard_vertical_slice() -> None:
+    session = make_session()
+    failed = RevenueEvent(
+        event_id="evt-vertical-failed",
+        event_type=RevenueEventType.PAYMENT_FAILED,
+        merchant_id=MERCHANT_ID,
+        source_object_id="order-vertical",
+        external_obligation_id="order-vertical",
+        obligation_type="payment",
+        payment_id="pay-vertical",
+        payment_method="upi",
+        failure_code="UPI_TIMEOUT",
+        amount_minor_units=249900,
+        currency="INR",
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    succeeded = failed.model_copy(
+        update={
+            "event_id": "evt-vertical-succeeded",
+            "event_type": RevenueEventType.PAYMENT_SUCCEEDED,
+            "failure_code": None,
+        }
+    )
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    previous_webhook_secret = settings.webhook_secret
+    settings.auth_hmac_secret = "test-secret"
+    settings.webhook_secret = "webhook-secret"
+    client = TestClient(app)
+
+    def post_event(payload: RevenueEvent) -> None:
+        session.rollback()
+        raw = payload.model_dump_json().encode()
+        digest = hmac.new(b"webhook-secret", raw, hashlib.sha256).hexdigest()
+        response = client.post(
+            "/webhooks/simulator",
+            content=raw,
+            headers={"X-Webhook-Signature": f"sha256={digest}"},
+        )
+        assert response.status_code == 200
+
+    try:
+        before = client.get("/api/v1/dashboard", headers=auth_headers()).json()["metrics"]
+        post_event(failed)
+        after_failure = client.get("/api/v1/dashboard", headers=auth_headers())
+        assert after_failure.status_code == 200
+        assert (
+            after_failure.json()["metrics"]["revenue_at_risk_minor_units"]
+            >= before["revenue_at_risk_minor_units"] + 249900
+        )
+        post_event(succeeded)
+        after_success = client.get("/api/v1/dashboard", headers=auth_headers())
+        assert after_success.status_code == 200
+        assert (
+            after_success.json()["metrics"]["recovered_minor_units"]
+            >= before["recovered_minor_units"] + 249900
+        )
+        post_event(succeeded)
+        duplicate_success = client.get("/api/v1/dashboard", headers=auth_headers())
+        assert duplicate_success.json()["metrics"]["recovered_minor_units"] == after_success.json()[
+            "metrics"
+        ]["recovered_minor_units"]
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        settings.webhook_secret = previous_webhook_secret
+        session.close()
 
 
 def test_jwks_mode_does_not_fall_back_to_local_hmac() -> None:

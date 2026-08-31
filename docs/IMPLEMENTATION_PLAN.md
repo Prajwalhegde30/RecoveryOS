@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 10 complete; Phase 11 attribution and recovery measurement are next
+**Current repository:** Phase 11 complete; Phase 12 typed API boundaries are next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -690,28 +690,29 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 11 — Attribution & Recovery Measurement
 
-### Sprint 11.1 — Experiment assignment and case attribution
+### Sprint 11.1 — MVP case attribution — COMPLETE
 
-**Sprint Objective:** Implement case-level natural/assisted/control/treatment outcomes.
+**Sprint Objective:** Implement deterministic MVP case-level natural/assisted/suppressed/unrecovered outcomes.
 
 **Prerequisites:** Reconciliation and action outcomes complete.
 
-**Dependencies:** Experiment/assignment schema, configured attribution window, success ordering.
+**Dependencies:** Attribution schema, configured attribution window, provider-confirmed success ordering.
 
 **Tasks**
 
-- [ ] Assign eligible cases before treatment, persist immutable variant, and honor configured ratios/eligibility.
-- [ ] Define qualifying treatment action and attribution window.
-- [ ] Classify natural, assisted, unrecovered, suppressed, control, and treatment outcomes.
-- [ ] Handle duplicate success, multiple interventions, refund/reversal adjustments, and event ordering.
+- [x] Define a configurable attribution window and qualifying executed action using persisted action identity.
+- [x] Classify natural, assisted, unrecovered, and suppressed outcomes at one case-level record.
+- [x] Refresh recovered and adjustment amounts from reconciled persisted facts without creating a second record.
+- [x] Handle duplicate success, multiple interventions, refund/reversal adjustments, and deterministic event ordering.
+- [ ] **Stretch:** Assign eligible cases to control/treatment only when an approved experiment is active; this is not required for the MVP workflow.
 
-**Files / Modules Affected:** Attribution/experiment application services, persistence, reconciliation.
+**Files / Modules Affected:** `apps/api/app/attribution/service.py`, attribution persistence, reconciliation facts.
 
-**Tests:** Control/treatment assignment, natural recovery, assisted recovery, outside window, multiple actions, duplicate success, refund/reversal, suppressed case.
+**Tests:** Natural recovery, assisted recovery, outside window, multiple actions, duplicate success, refund/reversal refresh, suppressed case, and case-level uniqueness. Experiment assignment remains Stretch coverage.
 
-**Sprint Exit Criteria:** Each eligible case has one reconstructable case-level attribution result and explicit limitations.
+**Sprint Exit Criteria:** COMPLETE — each eligible MVP case has at most one reconstructable case-level attribution result with explicit limitations; experiment assignment is optional and does not block MVP.
 
-### Sprint 11.2 — Recovery metrics and read models
+### Sprint 11.2 — Recovery metrics and read models — COMPLETE
 
 **Sprint Objective:** Calculate dashboard/business metrics from persisted facts.
 
@@ -721,18 +722,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement revenue at risk, expected recoverable, recovered, natural, assisted, unrecovered, suppressed, cost, net recovery, rate, lift, and median time metrics.
-- [ ] Segment by method, cause, strategy, channel, and incident where data supports it.
-- [ ] Prevent incident/message/recommendation counts from entering financial totals.
-- [ ] Add last-updated/freshness metadata and partial-data behavior.
+- [x] Implement revenue at risk, expected recoverable, recovered, natural, assisted, unrecovered, suppressed, cost, net recovery, recovery rate, and median time metrics.
+- [x] Derive metrics from tenant-scoped persisted obligations, cases, actions, and attribution records.
+- [x] Prevent incident/message/recommendation counts from entering financial totals.
+- [ ] Add API freshness metadata and partial-data behavior with the API/read-model boundary in Phase 12.
 
-**Files / Modules Affected:** Metrics/read-model services, repositories, API serializers.
+**Files / Modules Affected:** `apps/api/app/attribution/metrics.py`, tenant-scoped metric queries; API serializers remain Phase 12.
 
-**Tests:** Seeded expected aggregation, duplicate resistance, cost/net calculation, empty data, partial data, refresh/freshness.
+**Tests:** Expected aggregation, duplicate resistance, cost/net calculation, empty data, integer percentage calculation, and tenant scope. API freshness/partial-data behavior remains Phase 12.
 
-**Sprint Exit Criteria:** Metrics are derived from case/payment/action/attribution facts and reconcile to source totals.
+**Sprint Exit Criteria:** COMPLETE — metrics are integer-safe, tenant-scoped, derived from persisted case/payment/action/attribution facts, and reconcile to source totals for implemented fields.
 
-**Phase 11 Exit Criteria:** Recovery value and lift are measurable, reproducible, case-level, and honestly labeled.
+**Phase 11 Exit Criteria:** COMPLETE — MVP recovery value is measurable, reproducible, case-level, and honestly labeled; control/treatment lift and experiment analytics remain Stretch and are not a dependency for Phase 12 or MVP completion.
 
 ## Phase 12 — API Layer
 

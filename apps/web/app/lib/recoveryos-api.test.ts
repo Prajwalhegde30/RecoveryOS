@@ -20,9 +20,31 @@ describe('RecoveryOsApiClient', () => {
       'http://api.test/api/v1/cases/case%2F1/actions',
       expect.objectContaining({ method: 'POST' }),
     );
+    expect(fetcher.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        body: expect.stringContaining('dashboard-email-case/1'),
+      }),
+    );
     expect(fetcher.mock.calls[0]?.[1]).toEqual({
       headers: { Authorization: 'Bearer token' },
     });
+  });
+
+  it('reuses the same action idempotency key for repeated dashboard requests', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ status: 'SCHEDULED' }), { status: 200 }),
+      );
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+
+    await client.requestEmailAction('case-duplicate');
+    await client.requestEmailAction('case-duplicate');
+
+    const keys = fetcher.mock.calls.map(
+      (call) => JSON.parse(call[1]?.body as string).idempotency_key,
+    );
+    expect(keys).toEqual(['dashboard-email-case-duplicate', 'dashboard-email-case-duplicate']);
   });
 
   it('binds the browser fetch implementation when no test fetcher is supplied', async () => {

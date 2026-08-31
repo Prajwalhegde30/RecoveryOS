@@ -183,7 +183,7 @@ export class RecoveryOsApiClient {
   requestEmailAction(caseId: string): Promise<ActionResult> {
     return this.post(`/api/v1/cases/${encodeURIComponent(caseId)}/actions`, {
       action_type: 'SEND_EMAIL',
-      idempotency_key: `dashboard-${caseId}-${crypto.randomUUID()}`,
+      idempotency_key: `dashboard-email-${caseId}`,
       due_at: new Date().toISOString(),
       channel: 'email',
     });

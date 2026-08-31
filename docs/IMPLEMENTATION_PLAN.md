@@ -838,6 +838,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Implement case detail timeline/recommendation/policy/action/reconciliation views.
   - [x] Add a bounded dashboard action command for the registered email recovery action and surface server policy outcomes.
   - [x] Add the typed case-detail inspection panel for root cause, probability, attempts, persisted recommendations, policy decisions, actions, and recent audit timeline.
+  - [x] Reuse a stable case-scoped dashboard action idempotency key so repeated clicks cannot create duplicate outbound action identities.
 - [x] Implement incident view with baseline/current health, affected cases, suppression state, and confidence.
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.
   - [x] Add case-detail approval resolution controls through the typed API boundary; server-side Admin authorization and audit remain authoritative.

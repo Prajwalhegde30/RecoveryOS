@@ -957,3 +957,42 @@ def test_action_command_requires_operator_role_and_persists_blocking_decision() 
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret
         session.close()
+
+
+def test_operational_health_requires_operator_role() -> None:
+    session = make_session()
+    session.add(
+        User(
+            id="user-health-viewer",
+            subject="subject-health-viewer",
+            issuer="recoveryos-local",
+            email_or_label="health-viewer@test",
+            status="active",
+        )
+    )
+    session.add(
+        MerchantMembership(
+            merchant_id=MERCHANT_ID,
+            user_id="user-health-viewer",
+            role="VIEWER",
+        )
+    )
+    session.commit()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    try:
+        response = TestClient(app).get(
+            "/api/v1/health/operational",
+            headers=auth_headers_for("subject-health-viewer", role="VIEWER"),
+        )
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()

@@ -893,6 +893,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Apply merchant scope to every read, write, job claim, audit query, metric, simulator, and provider context.
   - [x] Keep scoring obligation lookup and simulator result aggregation explicitly merchant-scoped.
   - [x] Verify the durable job claim boundary cannot select or mutate a due job owned by another merchant.
+  - [x] Restrict operational health signals to the server-side Operator/Admin boundary while preserving merchant scope.
 - [ ] Verify external IDs cannot cross-resolve between merchants.
   - [x] Add a regression test rejecting a case whose obligation reference belongs to another merchant.
 - [ ] Add safe not-found/forbidden behavior without information leakage.

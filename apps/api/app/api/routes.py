@@ -93,6 +93,7 @@ def dashboard(
 
 @router.get("/health/operational", response_model=OperationalHealthResponse)
 def operational_health(
+    _operator: AuthContext = operator_dependency,
     merchant_id: str = merchant_scope_dependency,
     session: Session = db_session_dependency,
 ) -> OperationalHealthResponse:

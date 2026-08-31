@@ -824,8 +824,10 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, lift, costs, incidents, approvals, and system health.
+- [ ] Implement dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, costs, incidents, approvals, and system health.
+  - [x] Expose all currently available MVP financial metrics, including at-risk, expected, recovered, natural/assisted, suppressed, unrecovered, net, cost, recovery rate, recovered-case count, and median time to recovery.
   - [x] Expose the existing dashboard metrics, case list, incident list, active policy, and operational health reads in the shared UI shell.
+  - [ ] Add experiment lift only with the optional Stretch experiment/measurement path; it is not an MVP dashboard dependency.
 - [x] Implement case list status filtering and priority/newest presentation sorting through the typed API boundary.
 - [x] Implement case detail timeline/recommendation/policy/action/reconciliation views.
   - [x] Add a bounded dashboard action command for the registered email recovery action and surface server policy outcomes.
@@ -838,7 +840,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Route rendering, API loading/error/degraded states, permission presentation, case timeline, policy conflict display, dashboard metric formatting, E2E navigation.
 
-**Sprint Exit Criteria:** PARTIAL — the merchant can filter/sort cases, inspect persisted case decision evidence and audit timeline, review active policy and operational health, and request the registered email action; complete metric coverage, incident details, policy/integration views, and broader action UX remain pending.
+**Sprint Exit Criteria:** PARTIAL — the merchant can filter/sort cases, inspect persisted case decision evidence and audit timeline, review active policy and operational health, request the registered email action, and view all currently available MVP financial metrics; charts, policy/integration/approval views, and broader action UX remain pending. Experiment lift remains optional Stretch.
 
 **Phase 13 Exit Criteria:** PARTIAL — the responsive shell and initial case inspection are usable without domain logic in components; full operational dashboard and case/incident/policy workflows remain pending.
 

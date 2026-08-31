@@ -157,6 +157,17 @@ export function DashboardClient() {
                   metrics?.recovery_rate_percent == null ? '—' : `${metrics.recovery_rate_percent}%`
                 }
               />
+              <Metric label="Suppressed" value={money(metrics?.suppressed_minor_units)} />
+              <Metric label="Unrecovered" value={money(metrics?.unrecovered_minor_units)} />
+              <Metric
+                label="Recovered cases"
+                value={integer(metrics?.recovered_case_count)}
+                tone="success"
+              />
+              <Metric
+                label="Median time to recovery"
+                value={formatDuration(metrics?.median_time_to_recovery_seconds)}
+              />
             </div>
             <div className="section-heading">
               <div>
@@ -478,4 +489,18 @@ function formatWindow(window: Record<string, unknown>) {
 function formatEvidence(evidence: Record<string, unknown>) {
   const source = evidence.source;
   return typeof source === 'string' ? source : 'detector evidence recorded';
+}
+
+function integer(value: number | null | undefined) {
+  return value == null ? '—' : new Intl.NumberFormat('en-IN').format(value);
+}
+
+function formatDuration(seconds: number | null | undefined) {
+  if (seconds == null) return '—';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }

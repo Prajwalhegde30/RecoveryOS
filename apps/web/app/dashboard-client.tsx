@@ -223,6 +223,11 @@ export function DashboardClient() {
                             Detector confidence {item.confidence}% · {item.affected_case_ids.length}{' '}
                             affected case{item.affected_case_ids.length === 1 ? '' : 's'}
                           </small>
+                          <small>
+                            Current window: {formatWindow(item.current_window)} · baseline:{' '}
+                            {formatWindow(item.baseline_window)}
+                          </small>
+                          <small>Evidence: {formatEvidence(item.evidence)}</small>
                         </div>
                         <Badge tone="warning">SUPPRESSING</Badge>
                       </div>
@@ -441,4 +446,14 @@ function Metric({
       <strong className={tone === 'success' ? 'metric-success' : ''}>{value}</strong>
     </Card>
   );
+}
+
+function formatWindow(window: Record<string, unknown>) {
+  const rate = window.failure_rate_percent;
+  return typeof rate === 'number' ? `${rate}% failure rate` : 'not available';
+}
+
+function formatEvidence(evidence: Record<string, unknown>) {
+  const source = evidence.source;
+  return typeof source === 'string' ? source : 'detector evidence recorded';
 }

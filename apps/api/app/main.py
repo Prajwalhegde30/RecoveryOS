@@ -11,8 +11,11 @@ from app.customers.service import CustomerOptOutService
 from app.events.contracts import EventIngestionResult, RevenueEvent, RevenueEventType
 from app.events.security import verify_signature
 from app.events.service import EventIngestionService
+from app.integrations.contracts import PaymentStatus
+from app.integrations.simulated import SimulatedPaymentProvider
 from app.observability.middleware import CorrelationRateLimitMiddleware
 from app.persistence.models import RecoveryCaseStatus
+from app.reconciliation.service import PaymentReconciliationService
 from app.scoring.economics import ScoringConfig
 from app.scoring.service import CaseAnalysisService
 
@@ -21,6 +24,7 @@ app = FastAPI(title="RecoveryOS API", version="0.1.0")
 app.add_middleware(CorrelationRateLimitMiddleware)
 app.include_router(recovery_router)
 db_session_dependency = Depends(get_db_session)
+_simulated_payment_provider = SimulatedPaymentProvider()
 
 
 @app.get("/health/live", tags=["health"])
@@ -60,6 +64,24 @@ async def receive_webhook(
         CustomerOptOutService(session, event.merchant_id, provider).apply(event)
         return result
     case = RecoveryCaseService(session, provider, settings.max_recovery_attempts).associate(event)
+    if (
+        provider == "simulator"
+        and not result.duplicate
+        and event.event_type
+        in {
+            RevenueEventType.PAYMENT_SUCCEEDED,
+            RevenueEventType.INVOICE_PAID,
+            RevenueEventType.PAYMENT_REFUNDED,
+            RevenueEventType.PAYMENT_REVERSED,
+        }
+    ):
+        _prepare_simulated_reconciliation(event)
+        PaymentReconciliationService(
+            session,
+            event.merchant_id,
+            _simulated_payment_provider,
+            provider_name=provider,
+        ).reconcile(event)
     if case is not None and not result.duplicate and is_open(RecoveryCaseStatus(case.status)):
         case_id = case.id
         # Each application service owns a complete transaction; end any read transaction
@@ -78,3 +100,23 @@ async def receive_webhook(
         # Until then, the same persistence path records the deterministic safe fallback.
         AIRecommendationService(session, event.merchant_id, provider=None).fallback(case_id)
     return result
+
+
+def _prepare_simulated_reconciliation(event: RevenueEvent) -> None:
+    """Map a synthetic webhook to the simulated provider's authoritative status."""
+    if event.payment_id is None:
+        return
+    status_by_event = {
+        RevenueEventType.PAYMENT_SUCCEEDED: PaymentStatus.SUCCEEDED,
+        RevenueEventType.INVOICE_PAID: PaymentStatus.SUCCEEDED,
+        RevenueEventType.PAYMENT_REFUNDED: PaymentStatus.REFUNDED,
+        RevenueEventType.PAYMENT_REVERSED: PaymentStatus.REVERSED,
+    }
+    _simulated_payment_provider.set_status(
+        event.merchant_id,
+        event.payment_id,
+        status_by_event[event.event_type],
+        amount_minor_units=event.amount_minor_units,
+        currency=event.currency,
+        provider_reference=f"sim_payment_{event.payment_id}",
+    )

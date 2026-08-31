@@ -1002,6 +1002,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [ ] Run failed UPI event through signature/idempotency and one Recovery Case.
+  - [x] Signed simulator webhook success/refund/reversal events now invoke the existing provider-confirmed reconciliation boundary after event/case association.
 - [ ] Produce root cause, deterministic probability, expected recoverable amount, priority, and recommendation.
 - [ ] Apply policy and schedule a permitted action.
 - [ ] Trigger payment success before execution and verify last-moment cancellation, reconciliation, attribution, audit, and dashboard update.

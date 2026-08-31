@@ -17,6 +17,8 @@ from app.main import app
 from app.persistence.base import Base
 from app.persistence.models import (
     Customer,
+    Obligation,
+    PaymentAttempt,
     ProcessedEvent,
     Recommendation,
     RecoveryCase,
@@ -162,6 +164,52 @@ def test_webhook_accepts_signed_event_with_injected_session() -> None:
         recommendations = session.scalars(select(Recommendation)).all()
         assert len(recommendations) == 1
         assert recommendations[0].source == "DETERMINISTIC_FALLBACK"
+
+
+def test_signed_simulator_success_webhook_reconciles_once() -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    def session_dependency():
+        with Session(engine) as session:
+            yield session
+
+    failed = event("evt-e2e-failed").model_copy(update={"payment_id": "pay-e2e"})
+    succeeded = failed.model_copy(
+        update={
+            "event_id": "evt-e2e-succeeded",
+            "event_type": RevenueEventType.PAYMENT_SUCCEEDED,
+            "failure_code": None,
+        }
+    )
+    app.dependency_overrides[get_db_session] = session_dependency
+    get_settings().webhook_secret = "test-secret"
+    try:
+        client = TestClient(app)
+        for payload in (failed, succeeded, succeeded):
+            raw = payload.model_dump_json().encode()
+            digest = hmac.new(b"test-secret", raw, hashlib.sha256).hexdigest()
+            response = client.post(
+                "/webhooks/simulator",
+                content=raw,
+                headers={"X-Webhook-Signature": f"sha256={digest}"},
+            )
+            assert response.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+    with Session(engine) as session:
+        obligation = session.scalar(select(Obligation))
+        attempt = session.scalar(select(PaymentAttempt))
+        case = session.scalar(select(RecoveryCase))
+        assert obligation is not None and obligation.authoritative_status == "paid"
+        assert attempt is not None and attempt.status == "succeeded"
+        assert case is not None and case.recovered_amount == 249900
+        assert len(session.scalars(select(RevenueEventRecord)).all()) == 2
 
 
 def test_webhook_opt_out_blocks_later_case_analysis_and_outreach() -> None:

@@ -123,6 +123,47 @@ button {
   color: var(--color-success);
 }
 
+.metric-chart {
+  margin-top: var(--space-4);
+}
+
+.metric-chart-list {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.metric-chart-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.metric-chart-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.metric-chart-heading strong {
+  color: var(--color-foreground);
+}
+
+.metric-chart-track {
+  height: 0.65rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+}
+
+.metric-chart-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+}
+
 .metric-label {
   color: var(--color-muted);
   font-size: 0.85rem;

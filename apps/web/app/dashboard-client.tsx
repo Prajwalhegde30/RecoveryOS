@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  MetricBarChart,
   MetricCard,
 } from '@recoveryos/ui';
 import {
@@ -180,6 +181,31 @@ export function DashboardClient() {
                 value={formatDuration(metrics?.median_time_to_recovery_seconds)}
               />
             </div>
+            <MetricBarChart
+              title="Recovery value comparison"
+              bars={[
+                {
+                  label: 'At risk',
+                  value: money(metrics?.revenue_at_risk_minor_units),
+                  numericValue: metrics?.revenue_at_risk_minor_units ?? 0,
+                },
+                {
+                  label: 'Expected recoverable',
+                  value: money(metrics?.expected_recoverable_minor_units),
+                  numericValue: metrics?.expected_recoverable_minor_units ?? 0,
+                },
+                {
+                  label: 'Recovered',
+                  value: money(metrics?.recovered_minor_units),
+                  numericValue: metrics?.recovered_minor_units ?? 0,
+                },
+                {
+                  label: 'Net recovery',
+                  value: money(metrics?.net_recovery_minor_units),
+                  numericValue: metrics?.net_recovery_minor_units ?? 0,
+                },
+              ]}
+            />
             <div className="section-heading">
               <div>
                 <h2>Operational view</h2>

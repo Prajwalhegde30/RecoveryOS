@@ -13,6 +13,9 @@ from app.api.dependencies import get_db_session
 from app.auth.service import create_local_demo_token
 from app.config import get_settings
 from app.events.contracts import RevenueEvent, RevenueEventType
+from app.integrations.executor import ProviderActionExecutor
+from app.integrations.simulated import SimulatedMessagingProvider, SimulatedPaymentProvider
+from app.jobs.service import JobConfig, JobService
 from app.main import app
 from app.persistence.base import Base
 from app.persistence.models import (
@@ -33,6 +36,7 @@ from app.persistence.models import (
 )
 from app.policy.schema import Channel, MerchantPolicyDocument
 from app.policy.service import PolicyService
+from app.workers.service import ProviderPreflightChecker, WorkerService
 
 MERCHANT_ID = "merchant-api"
 OTHER_MERCHANT_ID = "merchant-other"
@@ -467,6 +471,102 @@ def test_authenticated_action_is_cancelled_when_payment_succeeds_before_executio
         )
         assert job is not None and job.status == "CANCELLED"
         assert action is not None and action.status == "CANCELLED"
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        settings.webhook_secret = previous_webhook_secret
+        session.close()
+
+
+def test_authenticated_action_executes_then_success_is_reconciled() -> None:
+    session = make_session()
+    activate_policy(session)
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    previous_webhook_secret = settings.webhook_secret
+    settings.auth_hmac_secret = "test-secret"
+    settings.webhook_secret = "webhook-secret"
+    client = TestClient(app)
+    try:
+        scheduled = client.post(
+            "/api/v1/cases/case-api/actions",
+            json={
+                "action_type": "GENERATE_PAYMENT_LINK",
+                "idempotency_key": "api-assisted-action",
+                "due_at": "2026-01-01T12:00:00Z",
+            },
+            headers=auth_headers(),
+        )
+        assert scheduled.status_code == 200
+        job_id = scheduled.json()["job_id"]
+        assert job_id is not None
+        session.rollback()
+
+        payment_provider = SimulatedPaymentProvider()
+        worker = WorkerService(
+            session,
+            MERCHANT_ID,
+            JobService(
+                session,
+                MERCHANT_ID,
+                    JobConfig(
+                        max_attempts=3,
+                        lease_seconds=60,
+                        backoff_base_seconds=1,
+                        backoff_max_seconds=8,
+                    ),
+            ),
+            ProviderActionExecutor(
+                payment=payment_provider,
+                messaging=SimulatedMessagingProvider(),
+                merchant_id=MERCHANT_ID,
+            ),
+            preflight=ProviderPreflightChecker(session, MERCHANT_ID, payment_provider),
+        )
+        worker_result = worker.process_once(now=datetime(2026, 1, 1, 12, 1, tzinfo=UTC))
+        assert worker_result.status == "succeeded"
+        session.rollback()
+        action = session.scalar(
+            select(RecoveryAction).where(
+                RecoveryAction.idempotency_key == "api-assisted-action"
+            )
+        )
+        assert action is not None and action.status == "SUCCEEDED"
+        session.rollback()
+
+        success = RevenueEvent(
+            event_id="evt-api-assisted-success",
+            event_type=RevenueEventType.PAYMENT_SUCCEEDED,
+            merchant_id=MERCHANT_ID,
+            source_object_id="order-api",
+            external_obligation_id="order-api",
+            obligation_type="payment",
+            payment_id="pay-api-assisted",
+            payment_method="upi",
+            amount_minor_units=2500,
+            currency="INR",
+            occurred_at=datetime(2026, 1, 1, 12, 2, tzinfo=UTC),
+        )
+        raw = success.model_dump_json().encode()
+        digest = hmac.new(b"webhook-secret", raw, hashlib.sha256).hexdigest()
+        reconciled = client.post(
+            "/webhooks/simulator",
+            content=raw,
+            headers={"X-Webhook-Signature": f"sha256={digest}"},
+        )
+        assert reconciled.status_code == 200
+        session.rollback()
+        dashboard = client.get("/api/v1/dashboard", headers=auth_headers())
+        assert dashboard.json()["metrics"]["recovered_minor_units"] == 2500
+        case = session.get(RecoveryCase, "case-api")
+        job = session.get(ScheduledJob, job_id)
+        assert case is not None and case.status == RecoveryCaseStatus.RECOVERED
+        assert job is not None and job.status == "COMPLETED"
     finally:
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret

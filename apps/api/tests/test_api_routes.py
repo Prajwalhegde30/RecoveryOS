@@ -221,6 +221,9 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         assert operational_metrics.status_code == 200
         assert operational_metrics.json()["metrics"]["cases_total"] == 1
         assert operational_metrics.json()["metrics"]["events_received"] == 0
+        audit = client.get("/api/v1/audit", headers=auth_headers())
+        assert audit.status_code == 200
+        assert audit.json()[0]["event_type"] == "CASE_CREATED"
         cases = client.get("/api/v1/cases", headers=auth_headers())
         assert cases.status_code == 200
         assert cases.json()[0]["amount_at_risk_minor_units"] == 2500
@@ -248,6 +251,7 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         assert other_metrics.status_code == 200
         assert other_metrics.json()["merchant_id"] == OTHER_MERCHANT_ID
         assert other_metrics.json()["metrics"]["cases_total"] == 0
+        assert client.get("/api/v1/audit", headers=other_merchant_headers()).json() == []
         other_dashboard = client.get("/api/v1/dashboard", headers=other_merchant_headers())
         assert other_dashboard.status_code == 200
         assert other_dashboard.json()["last_updated_at"]
@@ -316,6 +320,7 @@ def test_generated_openapi_keeps_core_contract_paths() -> None:
     assert "/api/v1/cases/{case_id}/approvals" in paths
     assert "/api/v1/approvals" in paths
     assert "/api/v1/health/metrics" in paths
+    assert "/api/v1/audit" in paths
     assert "/webhooks/{provider}" in paths
 
 

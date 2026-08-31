@@ -65,6 +65,17 @@ export type OperationalHealth = {
   >;
 };
 export type OperationalMetrics = { merchant_id: string; metrics: Record<string, number> };
+export type AuditEvent = {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  event_type: string;
+  actor_type: string;
+  reason: string;
+  metadata: Record<string, unknown>;
+  correlation_id: string;
+  created_at: string;
+};
 export type CurrentPolicy = { version: number; status: string; policy: Record<string, unknown> };
 export type ApprovalQueueItem = {
   case_id: string;
@@ -114,6 +125,10 @@ export class RecoveryOsApiClient {
 
   operationalMetrics(): Promise<OperationalMetrics> {
     return this.get('/api/v1/health/metrics');
+  }
+
+  audit(limit = 50): Promise<AuditEvent[]> {
+    return this.get(`/api/v1/audit?limit=${limit}`);
   }
 
   currentPolicy(): Promise<CurrentPolicy> {

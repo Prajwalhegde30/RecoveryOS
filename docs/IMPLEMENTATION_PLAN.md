@@ -867,6 +867,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Add production JWKS/approved identity-provider verification with an asymmetric algorithm allow-list; production mode cannot silently fall back to local HMAC validation.
 - [x] Add the implemented Admin-only approval-resolution API operation with merchant-scoped policy-version lookup, persisted decision, state transition, and audit record.
 - [ ] Complete authorization for future manual retry, intervention, policy, integrations, and audit operations as those API operations are introduced.
+  - [x] Authorize the implemented bounded audit read to Operator/Admin roles and enforce tenant-scoped query filtering.
 - [x] Add effective-role context to the implemented privileged action-command audit record; future privileged operation records must follow the same contract.
 
 **Files / Modules Affected:** `apps/api/app/auth`, auth dependencies/configuration, membership queries, API routes, web auth header wiring.
@@ -919,6 +920,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Prevent raw exception messages and tracebacks from entering the request log while retaining structured correlation and safe error metadata.
   - [x] Prevent simulator failure details from persisting raw exception text; expose only a safe operator message while retaining the correlated failure audit event.
 - [ ] Audit policy/config/integration changes, approvals, manual actions, simulator runs, reconciliations, security events, and state changes.
+  - [x] Expose recent safe audit facts through a bounded tenant-scoped Operator/Admin read and the dashboard activity view; case-level audit timelines remain available for detailed reconstruction.
 - [x] Add safe correlated error responses that redact internal exception details; dependency/security scanning remains pending.
 
 **Files / Modules Affected:** API middleware/configuration and request correlation; audit/logging hardening remains pending.

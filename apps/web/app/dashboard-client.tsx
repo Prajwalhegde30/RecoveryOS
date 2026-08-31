@@ -4,6 +4,7 @@ import React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
+  AuditActivityCard,
   Badge,
   Button,
   CaseDetailCard,
@@ -24,6 +25,7 @@ import {
   Incident,
   OperationalHealth,
   ApprovalQueueItem,
+  AuditEvent,
   OperationalMetrics,
   RecoveryOsApiClient,
 } from './lib/recoveryos-api';
@@ -40,6 +42,7 @@ export function DashboardClient() {
   const [operationalMetrics, setOperationalMetrics] = useState<OperationalMetrics | null>(null);
   const [policy, setPolicy] = useState<CurrentPolicy | null>(null);
   const [approvals, setApprovals] = useState<ApprovalQueueItem[] | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[] | null>(null);
   const [casesError, setCasesError] = useState<string | null>(null);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
@@ -89,13 +92,19 @@ export function DashboardClient() {
           : null,
       );
       setIncidents(incidentsResult.status === 'fulfilled' ? incidentsResult.value : []);
-      const [healthResult, metricsResult, policyResult, approvalsResult] = await Promise.allSettled(
-        [api.operationalHealth(), api.operationalMetrics(), api.currentPolicy(), api.approvals()],
-      );
+      const [healthResult, metricsResult, policyResult, approvalsResult, auditResult] =
+        await Promise.allSettled([
+          api.operationalHealth(),
+          api.operationalMetrics(),
+          api.currentPolicy(),
+          api.approvals(),
+          api.audit(),
+        ]);
       setHealth(healthResult.status === 'fulfilled' ? healthResult.value : null);
       setOperationalMetrics(metricsResult.status === 'fulfilled' ? metricsResult.value : null);
       setPolicy(policyResult.status === 'fulfilled' ? policyResult.value : null);
       setApprovals(approvalsResult.status === 'fulfilled' ? approvalsResult.value : null);
+      setAuditEvents(auditResult.status === 'fulfilled' ? auditResult.value : null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load RecoveryOS data.');
     } finally {
@@ -376,6 +385,17 @@ export function DashboardClient() {
                 <EmptyState>Workflow telemetry is unavailable.</EmptyState>
               )}
             </Card>
+            <AuditActivityCard
+              events={
+                auditEvents?.map((event) => ({
+                  id: event.id,
+                  eventType: event.event_type,
+                  entityType: event.entity_type,
+                  entityId: event.entity_id,
+                  correlationId: event.correlation_id,
+                })) ?? null
+              }
+            />
             <div className="content-grid">
               <Card>
                 <CardHeader>

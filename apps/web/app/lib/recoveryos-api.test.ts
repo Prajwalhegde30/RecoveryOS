@@ -52,6 +52,19 @@ describe('RecoveryOsApiClient', () => {
     });
   });
 
+  it('reads recent audit events through the typed boundary', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+
+    await expect(client.audit(10)).resolves.toEqual([]);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://api.test/api/v1/audit?limit=10',
+      expect.objectContaining({ headers: { Authorization: 'Bearer token' } }),
+    );
+  });
+
   it('posts approval decisions through the authenticated case boundary', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

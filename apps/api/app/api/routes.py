@@ -176,6 +176,36 @@ def operational_metrics(
     )
 
 
+@router.get("/audit", response_model=list[TimelineResponse])
+def audit_events(
+    limit: int = Query(default=50, ge=1, le=200),
+    _operator: AuthContext = operator_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> list[TimelineResponse]:
+    """Return recent safe audit facts for the authenticated merchant."""
+    events = session.scalars(
+        select(AuditEvent)
+        .where(AuditEvent.merchant_id == merchant_id)
+        .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
+        .limit(limit)
+    ).all()
+    return [
+        TimelineResponse(
+            id=event.id,
+            entity_type=event.entity_type,
+            entity_id=event.entity_id,
+            event_type=event.event_type,
+            actor_type=event.actor_type,
+            reason=event.reason,
+            metadata=event.metadata_safe_json,
+            correlation_id=event.correlation_id,
+            created_at=event.created_at,
+        )
+        for event in events
+    ]
+
+
 @router.get("/policies/current", response_model=CurrentPolicyResponse)
 def current_policy(
     merchant_id: str = merchant_scope_dependency,

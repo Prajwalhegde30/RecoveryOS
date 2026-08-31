@@ -47,6 +47,7 @@ export function DashboardClient() {
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [caseStatus, setCaseStatus] = useState('');
+  const [caseSource, setCaseSource] = useState('');
   const [sortByPriority, setSortByPriority] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export function DashboardClient() {
     try {
       const [dashboardResult, casesResult, incidentsResult] = await Promise.allSettled([
         api.dashboard(),
-        api.cases(caseStatus || undefined),
+        api.cases(caseStatus || undefined, caseSource || undefined),
         api.incidents(),
       ]);
       if (dashboardResult.status === 'rejected') {
@@ -110,7 +111,7 @@ export function DashboardClient() {
     } finally {
       setLoading(false);
     }
-  }, [api, caseStatus]);
+  }, [api, caseSource, caseStatus]);
 
   const loadCaseDetail = useCallback(
     async (caseId: string) => {
@@ -266,6 +267,20 @@ export function DashboardClient() {
                       <option value="RECOVERED">Recovered</option>
                       <option value="SUPPRESSED">Suppressed</option>
                       <option value="UNRECOVERED">Unrecovered</option>
+                    </select>
+                    <label className="sr-only" htmlFor="case-source">
+                      Filter cases by source
+                    </label>
+                    <select
+                      id="case-source"
+                      value={caseSource}
+                      onChange={(event) => setCaseSource(event.target.value)}
+                    >
+                      <option value="">All sources</option>
+                      <option value="payment.failed">Payment failure</option>
+                      <option value="checkout.abandoned">Checkout abandonment</option>
+                      <option value="subscription.payment_failed">Subscription failure</option>
+                      <option value="invoice.overdue">Overdue invoice</option>
                     </select>
                     <Button type="button" onClick={() => setSortByPriority((current) => !current)}>
                       {sortByPriority ? 'Priority order' : 'Newest order'}

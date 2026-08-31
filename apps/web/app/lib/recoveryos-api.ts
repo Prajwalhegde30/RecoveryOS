@@ -110,9 +110,11 @@ export class RecoveryOsApiClient {
     return this.get('/api/v1/dashboard');
   }
 
-  cases(status?: string): Promise<CaseSummary[]> {
-    const query = status ? `&status=${encodeURIComponent(status)}` : '';
-    return this.get(`/api/v1/cases?limit=50${query}`);
+  cases(status?: string, source?: string): Promise<CaseSummary[]> {
+    const query = new URLSearchParams({ limit: '50' });
+    if (status) query.set('status', status);
+    if (source) query.set('source', source);
+    return this.get(`/api/v1/cases?${query.toString()}`);
   }
 
   incidents(): Promise<Incident[]> {

@@ -233,6 +233,14 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
         cases = client.get("/api/v1/cases", headers=auth_headers())
         assert cases.status_code == 200
         assert cases.json()[0]["amount_at_risk_minor_units"] == 2500
+        filtered_cases = client.get(
+            "/api/v1/cases?source=payment_failure", headers=auth_headers()
+        )
+        assert filtered_cases.status_code == 200
+        assert [item["id"] for item in filtered_cases.json()] == ["case-api"]
+        assert client.get(
+            "/api/v1/cases?source=invoice.overdue", headers=auth_headers()
+        ).json() == []
         detail = client.get("/api/v1/cases/case-api", headers=auth_headers())
         assert detail.status_code == 200
         assert detail.json()["timeline"][0]["event_type"] == "CASE_CREATED"

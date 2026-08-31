@@ -230,6 +230,7 @@ def current_policy(
 @router.get("/cases", response_model=list[CaseSummaryResponse])
 def cases(
     status_filter: str | None = Query(default=None, alias="status"),
+    source_filter: str | None = Query(default=None, alias="source"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     merchant_id: str = merchant_scope_dependency,
@@ -248,6 +249,8 @@ def cases(
     )
     if status_filter is not None:
         statement = statement.where(RecoveryCase.status == status_filter)
+    if source_filter is not None:
+        statement = statement.where(RecoveryCase.source_type == source_filter)
     return [_summary(case, obligation) for case, obligation in session.execute(statement).all()]
 
 

@@ -38,6 +38,19 @@ describe('RecoveryOsApiClient', () => {
     );
   });
 
+  it('encodes status and source filters through the typed cases boundary', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+
+    await expect(client.cases('WAITING', 'checkout.abandoned')).resolves.toEqual([]);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://api.test/api/v1/cases?limit=50&status=WAITING&source=checkout.abandoned',
+      expect.objectContaining({ headers: { Authorization: 'Bearer token' } }),
+    );
+  });
+
   it('reads durable operational metrics through the typed boundary', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

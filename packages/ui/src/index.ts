@@ -9,3 +9,5 @@ export { MetricBarChart } from './components/metric-bar-chart';
 export type { MetricBar } from './components/metric-bar-chart';
 export { AuditActivityCard } from './components/audit-activity-card';
 export type { AuditActivity } from './components/audit-activity-card';
+export { CaseListCard } from './components/case-list-card';
+export type { CaseListItem } from './components/case-list-card';

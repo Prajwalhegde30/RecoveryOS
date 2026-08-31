@@ -7,6 +7,7 @@ import {
   AuditActivityCard,
   Badge,
   Button,
+  CaseListCard,
   CaseDetailCard,
   Card,
   CardHeader,
@@ -142,10 +143,6 @@ export function DashboardClient() {
   }, [load]);
 
   const metrics = dashboard?.metrics;
-  const visibleCases = [...cases].sort((left, right) => {
-    if (!sortByPriority) return 0;
-    return (right.priority_score ?? -1) - (left.priority_score ?? -1);
-  });
   return (
     <main className="dashboard-shell">
       <div className="dashboard-container">
@@ -256,95 +253,21 @@ export function DashboardClient() {
               </Badge>
             </div>
             <div className="content-grid">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Priority recovery cases</CardTitle>
-                  <div className="card-actions">
-                    <label className="sr-only" htmlFor="case-status">
-                      Filter cases by status
-                    </label>
-                    <select
-                      id="case-status"
-                      value={caseStatus}
-                      onChange={(event) => setCaseStatus(event.target.value)}
-                    >
-                      <option value="">All statuses</option>
-                      <option value="WAITING">Waiting</option>
-                      <option value="RECOVERED">Recovered</option>
-                      <option value="SUPPRESSED">Suppressed</option>
-                      <option value="UNRECOVERED">Unrecovered</option>
-                    </select>
-                    <label className="sr-only" htmlFor="case-source">
-                      Filter cases by source
-                    </label>
-                    <select
-                      id="case-source"
-                      value={caseSource}
-                      onChange={(event) => setCaseSource(event.target.value)}
-                    >
-                      <option value="">All sources</option>
-                      <option value="payment.failed">Payment failure</option>
-                      <option value="checkout.abandoned">Checkout abandonment</option>
-                      <option value="subscription.payment_failed">Subscription failure</option>
-                      <option value="invoice.overdue">Overdue invoice</option>
-                    </select>
-                    <label className="sr-only" htmlFor="case-root-cause">
-                      Filter cases by root cause
-                    </label>
-                    <select
-                      id="case-root-cause"
-                      value={caseRootCause}
-                      onChange={(event) => setCaseRootCause(event.target.value)}
-                    >
-                      <option value="">All root causes</option>
-                      <option value="temporary_payment_failure">Temporary payment failure</option>
-                      <option value="issuing_bank_issue">Issuing bank issue</option>
-                      <option value="insufficient_funds">Insufficient funds</option>
-                      <option value="expired_card">Expired card</option>
-                      <option value="checkout_abandonment">Checkout abandonment</option>
-                      <option value="systemic_payment_degradation">
-                        Systemic payment degradation
-                      </option>
-                      <option value="unknown">Unknown</option>
-                    </select>
-                    <Button type="button" onClick={() => setSortByPriority((current) => !current)}>
-                      {sortByPriority ? 'Priority order' : 'Newest order'}
-                    </Button>
-                    <Badge>{visibleCases.length} shown</Badge>
-                  </div>
-                </CardHeader>
-                {casesError ? (
-                  <ErrorState message={casesError} onRetry={() => void load()} />
-                ) : visibleCases.length ? (
-                  <div className="data-list">
-                    {visibleCases.map((item) => (
-                      <button
-                        className="data-row data-row-button"
-                        key={item.id}
-                        type="button"
-                        onClick={() => void loadCaseDetail(item.id)}
-                      >
-                        <div>
-                          <p>
-                            {item.id.slice(0, 8)} · {item.source_type.replaceAll('_', ' ')}
-                          </p>
-                          <small>
-                            {formatMoney(item.amount_at_risk_minor_units)} at risk · priority{' '}
-                            {item.priority_score ?? '—'}
-                          </small>
-                        </div>
-                        <Badge tone={item.status === 'RECOVERED' ? 'success' : 'warning'}>
-                          {item.status}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState>
-                    No recovery cases yet. Run a labeled simulator batch or ingest a payment event.
-                  </EmptyState>
-                )}
-              </Card>
+              <CaseListCard
+                cases={cases}
+                casesError={casesError}
+                sortByPriority={sortByPriority}
+                status={caseStatus}
+                source={caseSource}
+                rootCause={caseRootCause}
+                formatAmount={formatMoney}
+                onRetry={() => void load()}
+                onSelect={(caseId) => void loadCaseDetail(caseId)}
+                onStatusChange={setCaseStatus}
+                onSourceChange={setCaseSource}
+                onRootCauseChange={setCaseRootCause}
+                onSortChange={() => setSortByPriority((current) => !current)}
+              />
               <Card>
                 <CardHeader>
                   <CardTitle>Systemic degradation</CardTitle>

@@ -826,12 +826,12 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, costs, incidents, approvals, and system health.
+- [x] Implement MVP dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, costs, incidents, approvals, and system health.
   - [x] Expose all currently available MVP financial metrics, including at-risk, expected, recovered, natural/assisted, suppressed, unrecovered, net, cost, recovery rate, recovered-case count, and median time to recovery.
   - [x] Expose the existing dashboard metrics, case list, incident list, active policy, and operational health reads in the shared UI shell.
   - [x] Add a reusable shared metric comparison chart for persisted at-risk, expected, recovered, and net recovery values with an honest empty state.
   - [x] Keep primary dashboard metrics available when secondary case or incident reads fail; failed sections expose safe retryable UI states instead of blanking the whole dashboard.
-  - [ ] Add experiment lift only with the optional Stretch experiment/measurement path; it is not an MVP dashboard dependency.
+  - [ ] **Stretch:** Add experiment lift only with the optional experiment/measurement path; it is not an MVP dashboard dependency.
 - [x] Implement case list status filtering and priority/newest presentation sorting through the typed API boundary.
   - [x] Add tenant-scoped root-cause filtering and expose the persisted diagnosis in case summaries.
   - [x] Expose the complete current Recovery Case state and deterministic root-cause option sets in the shared filter component.
@@ -840,18 +840,19 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Add the typed case-detail inspection panel for root cause, probability, attempts, persisted recommendations, policy decisions, actions, and recent audit timeline.
   - [x] Reuse a stable case-scoped dashboard action idempotency key so repeated clicks cannot create duplicate outbound action identities.
 - [x] Implement incident view with baseline/current health, affected cases, suppression state, and confidence.
-- [ ] Implement policies, integrations, approvals, and experiments/measurement views.
+- [x] Implement MVP policy, integration, and approval views.
   - [x] Add case-detail approval resolution controls through the typed API boundary; server-side Admin authorization and audit remain authoritative.
   - [x] Add a tenant-scoped approval queue read for unresolved policy decisions and expose it as an optional dashboard operational view.
   - [x] Extract tested shared policy and integration-health cards that expose persisted controls and safe provider status without moving domain logic into the dashboard.
   - [x] Make persisted approval-queue items directly open the existing case-detail review flow through a shared UI component.
+  - [ ] **Stretch:** Add experiment configuration, control/treatment, and experiment-specific measurement views only when the optional experiment path is implemented.
 - [x] Keep pages under approximately 400–500 lines by extracting feature sections/components; pure dashboard formatters live in `apps/web/app/lib/dashboard-formatters.ts` and the case list/filter/error section is a tested shared `CaseListCard` in `packages/ui/src/components`; the dashboard client is 481 lines.
 
 **Files / Modules Affected:** `apps/web` route composition/features; `packages/ui/src` reusable additions.
 
 **Tests:** Route rendering, API loading/error/degraded states, permission presentation, case timeline, policy conflict display, dashboard metric formatting, E2E navigation.
 
-**Sprint Exit Criteria:** PARTIAL — the merchant can filter/sort cases, inspect persisted case decision evidence and audit timeline, review active policy and operational health, request the registered email action, resolve a persisted approval when authorized by the API, and view all currently available MVP financial metrics; charts, broader policy/integration views, and broader action UX remain pending. Experiment lift remains optional Stretch.
+**Sprint Exit Criteria:** PARTIAL — the merchant can filter/sort cases, inspect persisted case decision evidence and audit timeline, review active policy and integration health, request the registered email action, open and resolve a persisted approval when authorized by the API, and view all currently available MVP financial metrics. Experiment lift and configuration remain optional Stretch; future mutation breadth remains pending.
 
 **Phase 13 Exit Criteria:** PARTIAL — the responsive shell and initial case inspection are usable without domain logic in components; full operational dashboard and case/incident/policy workflows remain pending.
 

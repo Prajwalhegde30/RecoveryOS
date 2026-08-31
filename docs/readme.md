@@ -143,12 +143,14 @@ The Phase 0 runtime commands are:
 ```text
 pnpm dev:web         Start the web shell
 pnpm dev:api         Start the API health boundary (activate .venv first)
+python -m app.workers --merchant-id <merchant-id>
+                      Start the durable action worker (run from apps/api)
 pnpm e2e:smoke       Verify running API and web processes
 pnpm test            Run the current workspace tests
 pnpm build           Build the current workspace artifacts
 ```
 
-The API simulator lifecycle is available through authenticated Admin routes, while the standalone worker command remains an implementation/runtime concern. The database migration command is available now.
+The API simulator lifecycle is available through authenticated Admin routes. The worker runner uses the existing durable job, simulated payment, and simulated messaging boundaries; it does not create a schema or queue as a startup side effect. The database migration command is available now.
 
 ## Testing
 

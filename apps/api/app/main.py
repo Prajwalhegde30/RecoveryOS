@@ -2,11 +2,13 @@ import logging
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.responses import Response
 
 from app.ai.service import AIRecommendationService
-from app.api.dependencies import get_db_session
+from app.api.dependencies import get_db_session, get_session_factory
 from app.api.routes import router as recovery_router
 from app.cases.service import RecoveryCaseService
 from app.cases.state_machine import is_open
@@ -63,6 +65,18 @@ def liveness() -> dict[str, str]:
 
 @app.get("/health/ready", tags=["health"])
 def readiness() -> dict[str, str]:
+    try:
+        with get_session_factory()() as session:
+            session.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        logging.getLogger("recoveryos.health").warning(
+            "readiness_dependency_unavailable",
+            extra={"dependency": "database", "environment": settings.app_env},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="database readiness check failed",
+        ) from None
     return {"status": "ok", "environment": settings.app_env}
 
 

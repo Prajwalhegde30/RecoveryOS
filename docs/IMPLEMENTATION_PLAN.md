@@ -946,6 +946,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.
   - [x] Mark an old worker heartbeat as degraded using the existing configured job-lease freshness boundary; heartbeat state remains tenant-scoped and safe for operators.
 - [ ] Add error tracking hooks, stuck-job alerts, queue/backlog metrics, AI fallback metrics, and provider failure visibility.
+  - [x] Expose durable tenant-scoped provider failure and failed payment-attempt counters alongside job/action and AI fallback counters; external error tracking and deployment-backed alerts remain pending.
 - [ ] Add optional trace spans behind configuration without sensitive payloads.
 
 **Files / Modules Affected:** Logging/metrics/health/tracing modules, API/worker/adapters, dashboard health data.

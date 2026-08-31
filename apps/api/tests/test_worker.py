@@ -10,6 +10,7 @@ from app.events.service import EventIngestionService
 from app.integrations.contracts import PaymentStatus
 from app.integrations.simulated import SimulatedPaymentProvider
 from app.jobs.service import JobConfig, JobService
+from app.observability.metrics import OperationalMetricsService
 from app.persistence.base import Base
 from app.persistence.models import (
     Obligation,
@@ -189,12 +190,15 @@ def test_worker_provider_failure_retries_and_duplicate_run_is_noop() -> None:
     with Session(engine) as session:
         jobs, job_id = setup_job(session, "merchant_retry")
         executor = FakeExecutor(
-            ActionExecutionError("provider_timeout", "provider did not respond", retryable=True)
+            ActionExecutionError("payment_timeout", "provider did not respond", retryable=True)
         )
         worker = WorkerService(session, "merchant_retry", jobs, executor)
         now = datetime(2026, 1, 1, 12, tzinfo=UTC)
         first = worker.process_once(now=now)
         assert first.status == "retry_scheduled"
+        assert OperationalMetricsService(session, "merchant_retry").calculate()[
+            "provider_failures"
+        ] == 1
         session.rollback()
         retry_at = session.get(ScheduledJob, job_id).next_retry_at
         assert retry_at is not None

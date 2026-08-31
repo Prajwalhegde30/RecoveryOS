@@ -9,6 +9,7 @@ from app.persistence.models import (
     AttributionRecord,
     AuditEvent,
     Incident,
+    PaymentAttempt,
     PolicyDecision,
     Recommendation,
     RecoveryAction,
@@ -55,6 +56,26 @@ class OperationalMetricsService:
             "jobs_failed": self._count(ScheduledJob, ScheduledJob.status == "FAILED"),
             "actions_succeeded": self._count(RecoveryAction, RecoveryAction.status == "SUCCEEDED"),
             "actions_failed": self._count(RecoveryAction, RecoveryAction.status == "FAILED"),
+            "provider_failures": self._count(
+                RecoveryAction,
+                RecoveryAction.failure_category.in_(
+                    {
+                        "payment_timeout",
+                        "payment_transport_error",
+                        "payment_rate_limited",
+                        "payment_invalid_response",
+                        "payment_ambiguous_result",
+                        "messaging_timeout",
+                        "messaging_transport_error",
+                        "messaging_rate_limited",
+                        "messaging_invalid_response",
+                        "messaging_ambiguous_result",
+                    }
+                ),
+            ),
+            "payment_attempts_failed": self._count(
+                PaymentAttempt, PaymentAttempt.status == "failed"
+            ),
             "actions_cancelled": self._count(RecoveryAction, RecoveryAction.status == "CANCELLED"),
             "incidents_open": self._count(Incident, Incident.status == "OPEN"),
             "attributions_natural": self._count(

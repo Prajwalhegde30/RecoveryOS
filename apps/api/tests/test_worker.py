@@ -163,6 +163,9 @@ def test_worker_success_records_provider_effect_and_case_progression() -> None:
         assert action.provider_reference == "provider-1"
         assert action.cost_minor_units == 25
         assert case is not None and case.status == RecoveryCaseStatus.ACTION_EXECUTED
+        metrics = OperationalMetricsService(session, "merchant_worker").calculate()
+        assert metrics["provider_latency_samples"] == 1
+        assert metrics["provider_latency_total_ms"] >= 0
 
 
 def test_worker_last_mile_preflight_cancels_payment_race_without_execution() -> None:
@@ -199,6 +202,9 @@ def test_worker_provider_failure_retries_and_duplicate_run_is_noop() -> None:
         assert OperationalMetricsService(session, "merchant_retry").calculate()[
             "provider_failures"
         ] == 1
+        assert OperationalMetricsService(session, "merchant_retry").calculate()[
+            "provider_latency_samples"
+        ] == 1
         session.rollback()
         retry_at = session.get(ScheduledJob, job_id).next_retry_at
         assert retry_at is not None
@@ -206,6 +212,9 @@ def test_worker_provider_failure_retries_and_duplicate_run_is_noop() -> None:
         second = worker.process_once(now=retry_at.replace(tzinfo=UTC))
         assert second.status == "succeeded"
         assert executor.calls == ["worker-action-1", "worker-action-1"]
+        assert OperationalMetricsService(session, "merchant_retry").calculate()[
+            "provider_latency_samples"
+        ] == 2
         session.rollback()
         assert worker.process_once(now=retry_at.replace(tzinfo=UTC)).status == "idle"
 

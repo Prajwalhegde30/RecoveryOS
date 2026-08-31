@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event
+from time import perf_counter
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -198,9 +199,11 @@ class WorkerService:
         self.session.rollback()
         if not last_check.allowed:
             return self._handle_preflight_block(job_id, last_check, now)
+        execution_started = perf_counter()
         try:
             result = self.executor.execute(work)
         except ActionExecutionError as exc:
+            provider_latency_ms = _elapsed_milliseconds(execution_started)
             if exc.category in {
                 "payment_verified",
                 "payment_not_outstanding",
@@ -214,6 +217,7 @@ class WorkerService:
                 error_category=exc.category,
                 error_safe=exc.safe_message,
                 retryable=exc.retryable,
+                provider_latency_ms=provider_latency_ms,
             )
             return WorkerRunResult(
                 "retry_scheduled" if job.status == JobStatus.PENDING else "failed",
@@ -221,12 +225,14 @@ class WorkerService:
                 exc.category,
             )
         except Exception:
+            provider_latency_ms = _elapsed_milliseconds(execution_started)
             job = self.jobs.retry_or_fail(
                 job_id,
                 now=now,
                 error_category="worker_unexpected_error",
                 error_safe="worker execution failed unexpectedly",
                 retryable=True,
+                provider_latency_ms=provider_latency_ms,
             )
             return WorkerRunResult(
                 "retry_scheduled" if job.status == JobStatus.PENDING else "failed",
@@ -239,6 +245,7 @@ class WorkerService:
             provider_reference=result.provider_reference,
             cost_minor_units=result.cost_minor_units,
             executed_at=now,
+            provider_latency_ms=_elapsed_milliseconds(execution_started),
         )
         self._mark_case_executed(work.case_id)
         return WorkerRunResult("succeeded", job_id)
@@ -417,3 +424,8 @@ class WorkerService:
                     correlation_id="worker-execution",
                 )
             )
+
+
+def _elapsed_milliseconds(started: float) -> int:
+    """Return monotonic provider-attempt duration without exposing payloads."""
+    return max(0, int((perf_counter() - started) * 1000))

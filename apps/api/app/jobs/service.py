@@ -242,10 +242,13 @@ class JobService:
         error_category: str,
         error_safe: str,
         retryable: bool = True,
+        provider_latency_ms: int | None = None,
         correlation_id: str = "job-retry",
     ) -> ScheduledJob:
         if not error_category or not error_safe:
             raise ValueError("error_category and error_safe are required")
+        if provider_latency_ms is not None and provider_latency_ms < 0:
+            raise ValueError("provider_latency_ms must be non-negative")
         now_naive = _utc_naive(now)
         with self.session.begin():
             job = self._job(job_id, for_update=True)
@@ -283,7 +286,14 @@ class JobService:
                     event_type=event_type,
                     actor_type=ActorType.WORKER,
                     reason=error_safe[:512],
-                    metadata_safe_json={"error_category": error_category},
+                    metadata_safe_json={
+                        "error_category": error_category,
+                        **(
+                            {"provider_latency_ms": provider_latency_ms}
+                            if provider_latency_ms is not None
+                            else {}
+                        ),
+                    },
                     correlation_id=correlation_id,
                 )
             )
@@ -339,10 +349,13 @@ class JobService:
         provider_reference: str | None = None,
         cost_minor_units: int = 0,
         executed_at: datetime | None = None,
+        provider_latency_ms: int | None = None,
         correlation_id: str = "job-complete",
     ) -> ScheduledJob:
         if cost_minor_units < 0:
             raise ValueError("cost_minor_units must be non-negative")
+        if provider_latency_ms is not None and provider_latency_ms < 0:
+            raise ValueError("provider_latency_ms must be non-negative")
         with self.session.begin():
             job = self._job(job_id, for_update=True)
             if job.status == JobStatus.COMPLETED:
@@ -365,7 +378,11 @@ class JobService:
                     event_type="JOB_COMPLETED",
                     actor_type=ActorType.WORKER,
                     reason="job effect completed by worker",
-                    metadata_safe_json={},
+                    metadata_safe_json=(
+                        {"provider_latency_ms": provider_latency_ms}
+                        if provider_latency_ms is not None
+                        else {}
+                    ),
                     correlation_id=correlation_id,
                 )
             )

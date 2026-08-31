@@ -29,6 +29,7 @@ class OperationalMetricsService:
         self.merchant_id = merchant_id
 
     def calculate(self) -> dict[str, int]:
+        provider_latency = self._provider_latency_metrics()
         return {
             "events_received": self._count(RevenueEvent),
             "events_processed": self._count(
@@ -76,6 +77,7 @@ class OperationalMetricsService:
             "payment_attempts_failed": self._count(
                 PaymentAttempt, PaymentAttempt.status == "failed"
             ),
+            **provider_latency,
             "actions_cancelled": self._count(RecoveryAction, RecoveryAction.status == "CANCELLED"),
             "incidents_open": self._count(Incident, Incident.status == "OPEN"),
             "attributions_natural": self._count(
@@ -101,3 +103,27 @@ class OperationalMetricsService:
         if condition is not None:
             statement = statement.where(condition)
         return int(self.session.scalar(statement) or 0)
+
+    def _provider_latency_metrics(self) -> dict[str, int]:
+        """Aggregate safe worker timing facts persisted in tenant audit metadata."""
+        records = self.session.scalars(
+            select(AuditEvent).where(
+                AuditEvent.merchant_id == self.merchant_id,
+                AuditEvent.event_type.in_(
+                    {"JOB_COMPLETED", "JOB_RETRY_SCHEDULED", "JOB_FAILED_TERMINAL"}
+                ),
+            )
+        )
+        latencies = [
+            int(record.metadata_safe_json["provider_latency_ms"])
+            for record in records
+            if isinstance(record.metadata_safe_json, dict)
+            and isinstance(record.metadata_safe_json.get("provider_latency_ms"), int)
+            and record.metadata_safe_json["provider_latency_ms"] >= 0
+        ]
+        total = sum(latencies)
+        return {
+            "provider_latency_samples": len(latencies),
+            "provider_latency_total_ms": total,
+            "provider_latency_avg_ms": total // len(latencies) if latencies else 0,
+        }

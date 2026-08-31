@@ -943,6 +943,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Implement correlated structured request logs and safe unhandled-error responses without exposing exception payloads; broader entity-level structured logging and PII redaction remain pending.
 - [x] Implement a tenant-scoped operational metrics read model derived from persisted events, cases, recommendations, policy decisions, jobs, actions, incidents, and attribution records; duplicate-event counts use append-only duplicate-received audit facts.
 - [ ] Extend metrics with provider latency/error dimensions and deployment-backed alerting.
+  - [x] Persist safe provider execution latency for completed and failed/retried worker attempts and expose tenant-scoped aggregate samples/total/average metrics; deployment-backed alerting remains open.
 - [ ] Implement liveness/readiness and dependency health states.
   - [x] Keep public liveness independent from dependencies and make readiness verify database availability with a safe degraded response.
   - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.

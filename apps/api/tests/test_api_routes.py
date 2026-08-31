@@ -258,6 +258,17 @@ def test_versioned_routes_require_explicit_tenant_scope() -> None:
     assert response.status_code == 401
 
 
+def test_generated_openapi_keeps_core_contract_paths() -> None:
+    document = TestClient(app).get("/openapi.json")
+    assert document.status_code == 200
+    paths = document.json()["paths"]
+    assert "/api/v1/dashboard" in paths
+    assert "/api/v1/cases" in paths
+    assert "/api/v1/cases/{case_id}/actions" in paths
+    assert "/api/v1/cases/{case_id}/approvals" in paths
+    assert "/webhooks/{provider}" in paths
+
+
 def test_authenticated_signed_event_to_reconciled_dashboard_vertical_slice() -> None:
     session = make_session()
     failed = RevenueEvent(

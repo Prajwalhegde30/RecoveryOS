@@ -3,6 +3,37 @@ import { Button } from './button';
 import { Card, CardHeader, CardTitle } from './card';
 import { EmptyState, ErrorState } from './feedback';
 
+const CASE_STATUS_OPTIONS = [
+  ['DETECTED', 'Detected'],
+  ['ANALYZING', 'Analyzing'],
+  ['ACTION_PENDING', 'Action pending'],
+  ['POLICY_CHECK', 'Policy check'],
+  ['SCHEDULED', 'Scheduled'],
+  ['ACTION_EXECUTED', 'Action executed'],
+  ['WAITING', 'Waiting'],
+  ['RECOVERED', 'Recovered'],
+  ['ESCALATED', 'Escalated'],
+  ['SUPPRESSED', 'Suppressed'],
+  ['EXHAUSTED', 'Exhausted'],
+  ['CANCELLED', 'Cancelled'],
+  ['OPTED_OUT', 'Opted out'],
+] as const;
+
+const ROOT_CAUSE_OPTIONS = [
+  ['temporary_payment_failure', 'Temporary payment failure'],
+  ['issuing_bank_issue', 'Issuing bank issue'],
+  ['insufficient_funds', 'Insufficient funds'],
+  ['expired_card', 'Expired card'],
+  ['authentication_failure', 'Authentication failure'],
+  ['mandate_failure', 'Mandate failure'],
+  ['customer_cancellation', 'Customer cancellation'],
+  ['checkout_abandonment', 'Checkout abandonment'],
+  ['systemic_payment_degradation', 'Systemic payment degradation'],
+  ['invalid_payment_instrument', 'Invalid payment instrument'],
+  ['merchant_configuration', 'Merchant configuration'],
+  ['unknown', 'Unknown'],
+] as const;
+
 export type CaseListItem = {
   id: string;
   source_type: string;
@@ -60,10 +91,11 @@ export function CaseListCard({
             onChange={(event) => onStatusChange(event.target.value)}
           >
             <option value="">All statuses</option>
-            <option value="WAITING">Waiting</option>
-            <option value="RECOVERED">Recovered</option>
-            <option value="SUPPRESSED">Suppressed</option>
-            <option value="UNRECOVERED">Unrecovered</option>
+            {CASE_STATUS_OPTIONS.map(([value, label]) => (
+              <option value={value} key={value}>
+                {label}
+              </option>
+            ))}
           </select>
           <label className="sr-only" htmlFor="case-source">
             Filter cases by source
@@ -88,13 +120,11 @@ export function CaseListCard({
             onChange={(event) => onRootCauseChange(event.target.value)}
           >
             <option value="">All root causes</option>
-            <option value="temporary_payment_failure">Temporary payment failure</option>
-            <option value="issuing_bank_issue">Issuing bank issue</option>
-            <option value="insufficient_funds">Insufficient funds</option>
-            <option value="expired_card">Expired card</option>
-            <option value="checkout_abandonment">Checkout abandonment</option>
-            <option value="systemic_payment_degradation">Systemic payment degradation</option>
-            <option value="unknown">Unknown</option>
+            {ROOT_CAUSE_OPTIONS.map(([value, label]) => (
+              <option value={value} key={value}>
+                {label}
+              </option>
+            ))}
           </select>
           <Button type="button" onClick={onSortChange}>
             {sortByPriority ? 'Priority order' : 'Newest order'}

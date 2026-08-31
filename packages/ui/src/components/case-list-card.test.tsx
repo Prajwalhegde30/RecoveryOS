@@ -35,6 +35,8 @@ describe('CaseListCard', () => {
     expect(markup).toContain('temporary_payment_failure');
     expect(markup).toContain('Priority order');
     expect(markup).toContain('Filter cases by root cause');
+    expect(markup).toContain('Authentication failure');
+    expect(markup).toContain('Opted out');
   });
 
   it('renders a retryable error state without case rows', () => {

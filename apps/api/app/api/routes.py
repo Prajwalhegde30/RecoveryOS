@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -121,6 +121,9 @@ def operational_health(
         .where(WorkerHeartbeat.merchant_id == merchant_id)
         .order_by(WorkerHeartbeat.last_seen_at.desc())
     )
+    heartbeat_is_stale = heartbeat is not None and heartbeat.last_seen_at < (
+        now - timedelta(seconds=get_settings().job_lease_seconds)
+    )
     payment_health = SimulatedPaymentProvider().health()
     messaging_health = SimulatedMessagingProvider().health()
     return OperationalHealthResponse(
@@ -130,11 +133,17 @@ def operational_health(
             "database": ComponentHealthResponse(status="healthy", detail="tenant query succeeded"),
             "worker": ComponentHealthResponse(
                 status=(
-                    "degraded" if stale_claims else heartbeat.status if heartbeat else "unknown"
+                    "degraded"
+                    if stale_claims or heartbeat_is_stale
+                    else heartbeat.status
+                    if heartbeat
+                    else "unknown"
                 ),
                 detail=(
                     "claimed jobs have expired leases"
                     if stale_claims
+                    else "worker heartbeat is stale"
+                    if heartbeat_is_stale
                     else heartbeat.detail_safe
                     if heartbeat
                     else "worker heartbeat is not registered"

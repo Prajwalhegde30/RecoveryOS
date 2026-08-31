@@ -939,6 +939,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Extend metrics with provider latency/error dimensions and deployment-backed alerting.
 - [ ] Implement liveness/readiness and dependency health states.
   - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.
+  - [x] Mark an old worker heartbeat as degraded using the existing configured job-lease freshness boundary; heartbeat state remains tenant-scoped and safe for operators.
 - [ ] Add error tracking hooks, stuck-job alerts, queue/backlog metrics, AI fallback metrics, and provider failure visibility.
 - [ ] Add optional trace spans behind configuration without sensitive payloads.
 

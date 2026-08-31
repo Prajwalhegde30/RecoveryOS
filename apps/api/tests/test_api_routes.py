@@ -27,6 +27,7 @@ from app.persistence.models import (
     RecoveryCase,
     RecoveryCaseStatus,
     User,
+    WorkerHeartbeat,
 )
 from app.policy.schema import Channel, MerchantPolicyDocument
 from app.policy.service import PolicyService
@@ -269,6 +270,37 @@ def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
 def test_versioned_routes_require_explicit_tenant_scope() -> None:
     response = TestClient(app).get("/api/v1/cases")
     assert response.status_code == 401
+
+
+def test_operational_health_marks_stale_worker_heartbeat_degraded() -> None:
+    session = make_session()
+    session.add(
+        WorkerHeartbeat(
+            merchant_id=MERCHANT_ID,
+            worker_id="worker-stale",
+            status="healthy",
+            last_seen_at=datetime.now(UTC) - timedelta(minutes=10),
+            detail_safe="worker loop active",
+        )
+    )
+    session.commit()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    try:
+        response = TestClient(app).get("/api/v1/health/operational", headers=auth_headers())
+        assert response.status_code == 200
+        assert response.json()["components"]["worker"]["status"] == "degraded"
+        assert response.json()["components"]["worker"]["detail"] == "worker heartbeat is stale"
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
 
 
 def test_generated_openapi_keeps_core_contract_paths() -> None:

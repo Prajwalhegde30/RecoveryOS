@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     auth_hmac_secret: str | None = None
     rate_limit_max_requests: int = Field(default=120, gt=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)
+    job_lease_seconds: int = Field(default=60, gt=0)
+    job_backoff_base_seconds: int = Field(default=30, gt=0)
+    job_backoff_max_seconds: int = Field(default=900, gt=0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

@@ -1,11 +1,12 @@
 from collections.abc import Generator
-from datetime import timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.ai.contracts import ActionType
 from app.api.dependencies import get_db_session
 from app.auth.service import create_local_demo_token
 from app.config import get_settings
@@ -17,11 +18,15 @@ from app.persistence.models import (
     Incident,
     Merchant,
     MerchantMembership,
+    MerchantPolicy,
     Obligation,
+    PolicyVersion,
     RecoveryCase,
     RecoveryCaseStatus,
     User,
 )
+from app.policy.schema import Channel, MerchantPolicyDocument
+from app.policy.service import PolicyService
 
 MERCHANT_ID = "merchant-api"
 
@@ -119,16 +124,46 @@ def override_session(session: Session) -> Generator[Session, None, None]:
 
 
 def auth_headers(merchant_id: str = MERCHANT_ID) -> dict[str, str]:
+    return auth_headers_for("subject-api", merchant_id=merchant_id)
+
+
+def auth_headers_for(
+    subject: str, *, merchant_id: str = MERCHANT_ID, role: str = "ADMIN"
+) -> dict[str, str]:
     token = create_local_demo_token(
-        subject="subject-api",
+        subject=subject,
         issuer="recoveryos-local",
         merchant_id=merchant_id,
-        role="ADMIN",
+        role=role,
         secret="test-secret",
         audience="recoveryos-api",
         lifetime=timedelta(hours=1),
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+def activate_policy(session: Session, *, approval_threshold: int = 10_000) -> None:
+    session.rollback()
+    now = datetime.now(UTC)
+    policy = MerchantPolicyDocument(
+        timezone="UTC",
+        max_attempts=3,
+        min_contact_interval_minutes=0,
+        quiet_hours_start=time((now.hour + 1) % 24),
+        quiet_hours_end=time((now.hour + 2) % 24),
+        approval_threshold_minor_units=approval_threshold,
+        max_contacts_per_case=3,
+        max_contacts_per_customer=3,
+        sequence_duration_minutes=60,
+        enabled_channels={Channel.EMAIL, Channel.SMS, Channel.WHATSAPP},
+        retry_max_attempts=2,
+        incident_suppression_enabled=True,
+        fallback_action=ActionType.SEND_EMAIL,
+    )
+    version = PolicyService(session, MERCHANT_ID).create_draft(policy, actor_id="admin-api")
+    version_id = version.id
+    session.rollback()
+    PolicyService(session, MERCHANT_ID).activate(version_id, actor_id="admin-api")
 
 
 def test_versioned_read_routes_are_typed_and_tenant_scoped() -> None:
@@ -202,6 +237,85 @@ def test_simulator_endpoint_reuses_seeded_event_identity() -> None:
         assert first.json()["label"] == "synthetic_simulator_data"
         assert second.status_code == 200
         assert second.json()["duplicate_event_count"] >= 1
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
+def test_action_command_evaluates_policy_and_is_idempotent() -> None:
+    session = make_session()
+    activate_policy(session)
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    client = TestClient(app)
+    payload = {
+        "action_type": "GENERATE_PAYMENT_LINK",
+        "idempotency_key": "action-api-1",
+        "due_at": "2030-01-01T12:00:00Z",
+    }
+    try:
+        first = client.post("/api/v1/cases/case-api/actions", json=payload, headers=auth_headers())
+        second = client.post("/api/v1/cases/case-api/actions", json=payload, headers=auth_headers())
+        assert first.status_code == 200
+        assert first.json()["status"] == "SCHEDULED"
+        assert first.json()["job_id"] == second.json()["job_id"]
+        assert session.query(PolicyVersion).count() == 1
+        assert session.query(MerchantPolicy).count() == 1
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
+def test_action_command_requires_operator_role_and_persists_blocking_decision() -> None:
+    session = make_session()
+    activate_policy(session, approval_threshold=1_000)
+    session.add(
+        User(
+            id="user-viewer",
+            subject="subject-viewer",
+            issuer="recoveryos-local",
+            email_or_label="viewer@test",
+            status="active",
+        )
+    )
+    session.add(MerchantMembership(merchant_id=MERCHANT_ID, user_id="user-viewer", role="VIEWER"))
+    session.commit()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    client = TestClient(app)
+    payload = {
+        "action_type": "SEND_EMAIL",
+        "idempotency_key": "action-api-blocked",
+        "due_at": "2030-01-01T12:00:00Z",
+        "channel": "email",
+    }
+    try:
+        forbidden = client.post(
+            "/api/v1/cases/case-api/actions",
+            json=payload,
+            headers=auth_headers_for("subject-viewer", role="VIEWER"),
+        )
+        assert forbidden.status_code == 403
+        blocked = client.post(
+            "/api/v1/cases/case-api/actions", json=payload, headers=auth_headers()
+        )
+        assert blocked.status_code == 200
+        assert blocked.json()["status"] == "REQUIRES_APPROVAL"
+        assert blocked.json()["job_id"] is None
     finally:
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret

@@ -5,6 +5,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.ai.contracts import ActionType
+from app.policy.schema import Channel
+
 
 class CaseSummaryResponse(BaseModel):
     id: str
@@ -98,3 +101,19 @@ class SimulatorRunResponse(BaseModel):
     scenario_counts: dict[str, int]
     event_ids: tuple[str, ...]
     case_ids: tuple[str, ...]
+
+
+class ActionCommandRequest(BaseModel):
+    action_type: ActionType
+    idempotency_key: str = Field(min_length=1, max_length=255)
+    due_at: datetime
+    channel: Channel | None = None
+    recommendation_id: str | None = None
+
+
+class ActionCommandResponse(BaseModel):
+    status: str
+    case_id: str
+    policy_decision_id: str
+    job_id: str | None
+    reason: str

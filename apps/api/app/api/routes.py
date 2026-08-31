@@ -7,8 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import admin_dependency, get_db_session, get_merchant_scope
+from app.actions.service import ActionCommandService
+from app.api.dependencies import (
+    admin_dependency,
+    get_db_session,
+    get_merchant_scope,
+    operator_dependency,
+)
 from app.api.schemas import (
+    ActionCommandRequest,
+    ActionCommandResponse,
     CaseDetailResponse,
     CaseSummaryResponse,
     DashboardResponse,
@@ -19,6 +27,8 @@ from app.api.schemas import (
 )
 from app.attribution.metrics import RecoveryMetricsService
 from app.auth.service import AuthContext
+from app.config import get_settings
+from app.jobs.service import JobConfig
 from app.persistence.models import (
     AuditEvent,
     CaseIncident,
@@ -207,6 +217,49 @@ def incidents(
             )
         )
     return responses
+
+
+@router.post("/cases/{case_id}/actions", response_model=ActionCommandResponse)
+def request_action(
+    case_id: str,
+    request: ActionCommandRequest,
+    _operator: AuthContext = operator_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> ActionCommandResponse:
+    settings = get_settings()
+    try:
+        result = ActionCommandService(
+            session,
+            merchant_id,
+            JobConfig(
+                max_attempts=settings.max_recovery_attempts,
+                lease_seconds=settings.job_lease_seconds,
+                backoff_base_seconds=settings.job_backoff_base_seconds,
+                backoff_max_seconds=settings.job_backoff_max_seconds,
+            ),
+        ).request(
+            case_id=case_id,
+            action_type=request.action_type,
+            idempotency_key=request.idempotency_key,
+            due_at=request.due_at,
+            actor_id=_operator.subject,
+            channel=request.channel,
+            recommendation_id=request.recommendation_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return ActionCommandResponse(
+        status=result.status,
+        case_id=result.case_id,
+        policy_decision_id=result.policy_decision_id,
+        job_id=result.job_id,
+        reason=result.reason,
+    )
 
 
 @router.post("/simulator/runs", response_model=SimulatorRunResponse)

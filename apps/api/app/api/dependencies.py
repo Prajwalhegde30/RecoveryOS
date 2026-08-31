@@ -93,3 +93,4 @@ def require_role(*roles: str):
 
 
 admin_dependency = Depends(require_role("ADMIN"))
+operator_dependency = Depends(require_role("OPERATOR", "ADMIN"))

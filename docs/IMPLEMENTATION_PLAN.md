@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 15 request hardening/correlation foundation complete; API operations, feature views, full authorization/JWKS, and deeper observability remain next
+**Current repository:** Phase 15 request hardening/correlation foundation complete; authenticated action scheduling is implemented, while simulator lifecycle, feature views, full authorization/JWKS, and deeper observability remain next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -772,7 +772,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Retain the signed webhook endpoint and safe receipt response implemented in the event-ingestion boundary.
 - [x] Add a tenant-scoped simulator start endpoint using deterministic seeded event identity; repeated seeds remain idempotent through normal ingestion.
 - [ ] Add simulator status/reset controls with an authenticated Admin boundary and persisted run identity.
-- [ ] Add case action/approval endpoints with server-side policy rechecks.
+- [x] Add a registered-action command endpoint for Operator/Admin users with server-side policy rechecks, persisted policy decisions, policy-version traceability, and durable idempotent scheduling; provider execution remains worker-owned.
 - [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.
 - [ ] Add worker and integration health endpoints.
 
@@ -780,7 +780,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Signature rejection, duplicate webhook, unauthorized simulator/action, stale worker, dependency degraded, case not found, safe error payload.
 
-**Sprint Exit Criteria:** All mutation endpoints enforce application rules and expose useful operational state.
+**Sprint Exit Criteria:** PARTIAL — the authenticated action command path enforces role membership, policy evaluation, policy-version persistence, and durable action/job idempotency; simulator lifecycle, approval resolution, worker/integration health, and full OpenAPI client coverage remain pending.
 
 **Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; authenticated mutation, simulator lifecycle, worker/integration health, and full OpenAPI client coverage remain pending.
 

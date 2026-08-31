@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.service import AIRecommendationService
 from app.api.dependencies import get_db_session
+from app.api.routes import router as recovery_router
 from app.cases.service import RecoveryCaseService
 from app.cases.state_machine import is_open
 from app.config import get_settings
@@ -16,6 +17,7 @@ from app.scoring.service import CaseAnalysisService
 
 settings = get_settings()
 app = FastAPI(title="RecoveryOS API", version="0.1.0")
+app.include_router(recovery_router)
 db_session_dependency = Depends(get_db_session)
 
 

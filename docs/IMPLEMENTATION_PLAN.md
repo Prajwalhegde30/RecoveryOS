@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 11 complete; Phase 12 typed API boundaries are next
+**Current repository:** Phase 12.1 complete; Phase 12.2 API operations and Phase 14 authentication/authorization remain next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -737,7 +737,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 12 — API Layer
 
-### Sprint 12.1 — Typed API contract and core endpoints
+### Sprint 12.1 — Typed API contract and core endpoints — COMPLETE
 
 **Sprint Objective:** Expose the workflow through a stable, validated API for web and tests.
 
@@ -747,16 +747,17 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Define versioned endpoints for dashboard, cases, case detail/timeline, incidents, approvals, policies, experiments/metrics, simulator, and health.
-- [ ] Map application errors to safe HTTP error categories.
-- [ ] Generate/validate TypeScript client from OpenAPI; prohibit manual drift.
-- [ ] Add pagination, filtering, sorting, tenant scope, and freshness metadata.
+- [x] Define versioned read endpoints for dashboard metrics, cases, case detail/timeline, incidents, and health.
+- [x] Map missing tenant scope and missing cases to safe HTTP error categories.
+- [x] Add typed Pydantic response schemas without exposing provider payloads or domain logic to the web layer.
+- [x] Add pagination, filtering, sorting, explicit tenant scope, and freshness metadata for implemented read paths.
+- [ ] Generate/validate TypeScript client from OpenAPI; complete contract coverage for mutation and operational endpoints in Sprint 12.2.
 
-**Files / Modules Affected:** `apps/api` routes/schemas/dependencies; generated web client boundary.
+**Files / Modules Affected:** `apps/api/app/api/routes.py`, `schemas.py`, dependency seam, and existing FastAPI application.
 
-**Tests:** API validation, response schema, authorization seam, pagination, filters, safe errors, OpenAPI generation, contract compatibility.
+**Tests:** API validation, response schema, explicit tenant-scope seam, pagination, filters, safe errors, cross-tenant read rejection, and route compatibility. Full OpenAPI/client coverage remains Sprint 12.2.
 
-**Sprint Exit Criteria:** Web/test clients can consume typed API contracts without embedding domain logic or provider details.
+**Sprint Exit Criteria:** COMPLETE — web/test clients can consume typed read contracts without embedding domain logic or provider details; mutation and operational endpoint coverage remains explicitly pending.
 
 ### Sprint 12.2 — Webhooks, simulator controls, and operational endpoints
 

@@ -29,6 +29,14 @@ import {
   OperationalMetrics,
   RecoveryOsApiClient,
 } from './lib/recoveryos-api';
+import {
+  formatDuration,
+  formatEvidence,
+  formatInteger,
+  formatMoney,
+  formatTimestamp,
+  formatWindow,
+} from './lib/dashboard-formatters';
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 const merchantId = process.env.NEXT_PUBLIC_MERCHANT_ID ?? '';
@@ -138,15 +146,6 @@ export function DashboardClient() {
     if (!sortByPriority) return 0;
     return (right.priority_score ?? -1) - (left.priority_score ?? -1);
   });
-  const money = (value: number | null | undefined) =>
-    value == null
-      ? '—'
-      : new Intl.NumberFormat('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-          maximumFractionDigits: 0,
-        }).format(value / 100);
-
   return (
     <main className="dashboard-shell">
       <div className="dashboard-container">
@@ -168,42 +167,48 @@ export function DashboardClient() {
             <div className="metric-grid" aria-label="Recovery metrics">
               <MetricCard
                 label="Revenue at risk"
-                value={money(metrics?.revenue_at_risk_minor_units)}
+                value={formatMoney(metrics?.revenue_at_risk_minor_units)}
               />
               <MetricCard
                 label="Expected recoverable"
-                value={money(metrics?.expected_recoverable_minor_units)}
+                value={formatMoney(metrics?.expected_recoverable_minor_units)}
               />
               <MetricCard
                 label="Recovered"
-                value={money(metrics?.recovered_minor_units)}
+                value={formatMoney(metrics?.recovered_minor_units)}
                 tone="success"
               />
               <MetricCard
                 label="Net recovery"
-                value={money(metrics?.net_recovery_minor_units)}
+                value={formatMoney(metrics?.net_recovery_minor_units)}
                 tone="success"
               />
               <MetricCard
                 label="Natural recovery"
-                value={money(metrics?.natural_recovered_minor_units)}
+                value={formatMoney(metrics?.natural_recovered_minor_units)}
               />
               <MetricCard
                 label="Assisted recovery"
-                value={money(metrics?.assisted_recovered_minor_units)}
+                value={formatMoney(metrics?.assisted_recovered_minor_units)}
               />
-              <MetricCard label="Recovery cost" value={money(metrics?.recovery_cost_minor_units)} />
+              <MetricCard
+                label="Recovery cost"
+                value={formatMoney(metrics?.recovery_cost_minor_units)}
+              />
               <MetricCard
                 label="Recovery rate"
                 value={
                   metrics?.recovery_rate_percent == null ? '—' : `${metrics.recovery_rate_percent}%`
                 }
               />
-              <MetricCard label="Suppressed" value={money(metrics?.suppressed_minor_units)} />
-              <MetricCard label="Unrecovered" value={money(metrics?.unrecovered_minor_units)} />
+              <MetricCard label="Suppressed" value={formatMoney(metrics?.suppressed_minor_units)} />
+              <MetricCard
+                label="Unrecovered"
+                value={formatMoney(metrics?.unrecovered_minor_units)}
+              />
               <MetricCard
                 label="Recovered cases"
-                value={integer(metrics?.recovered_case_count)}
+                value={formatInteger(metrics?.recovered_case_count)}
                 tone="success"
               />
               <MetricCard
@@ -216,22 +221,22 @@ export function DashboardClient() {
               bars={[
                 {
                   label: 'At risk',
-                  value: money(metrics?.revenue_at_risk_minor_units),
+                  value: formatMoney(metrics?.revenue_at_risk_minor_units),
                   numericValue: metrics?.revenue_at_risk_minor_units ?? 0,
                 },
                 {
                   label: 'Expected recoverable',
-                  value: money(metrics?.expected_recoverable_minor_units),
+                  value: formatMoney(metrics?.expected_recoverable_minor_units),
                   numericValue: metrics?.expected_recoverable_minor_units ?? 0,
                 },
                 {
                   label: 'Recovered',
-                  value: money(metrics?.recovered_minor_units),
+                  value: formatMoney(metrics?.recovered_minor_units),
                   numericValue: metrics?.recovered_minor_units ?? 0,
                 },
                 {
                   label: 'Net recovery',
-                  value: money(metrics?.net_recovery_minor_units),
+                  value: formatMoney(metrics?.net_recovery_minor_units),
                   numericValue: metrics?.net_recovery_minor_units ?? 0,
                 },
               ]}
@@ -324,7 +329,7 @@ export function DashboardClient() {
                             {item.id.slice(0, 8)} · {item.source_type.replaceAll('_', ' ')}
                           </p>
                           <small>
-                            {money(item.amount_at_risk_minor_units)} at risk · priority{' '}
+                            {formatMoney(item.amount_at_risk_minor_units)} at risk · priority{' '}
                             {item.priority_score ?? '—'}
                           </small>
                         </div>
@@ -384,7 +389,9 @@ export function DashboardClient() {
                         <p>Case {approval.case_id.slice(0, 8)}</p>
                         <small>{approval.reason}</small>
                       </div>
-                      <Badge tone="warning">{money(approval.amount_at_risk_minor_units)}</Badge>
+                      <Badge tone="warning">
+                        {formatMoney(approval.amount_at_risk_minor_units)}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -409,7 +416,7 @@ export function DashboardClient() {
                     .map(([name, value]) => (
                       <div className="data-row" key={name}>
                         <p>{name.replaceAll('_', ' ')}</p>
-                        <strong>{integer(value)}</strong>
+                        <strong>{formatInteger(value)}</strong>
                       </div>
                     ))}
                   {!Object.values(operationalMetrics.metrics).some((value) => value > 0) ? (
@@ -548,38 +555,4 @@ export function DashboardClient() {
       </div>
     </main>
   );
-}
-
-function formatWindow(window: Record<string, unknown>) {
-  const rate = window.failure_rate_percent;
-  return typeof rate === 'number' ? `${rate}% failure rate` : 'not available';
-}
-
-function formatEvidence(evidence: Record<string, unknown>) {
-  const source = evidence.source;
-  return typeof source === 'string' ? source : 'detector evidence recorded';
-}
-
-function integer(value: number | null | undefined) {
-  return value == null ? '—' : new Intl.NumberFormat('en-IN').format(value);
-}
-
-function formatDuration(seconds: number | null | undefined) {
-  if (seconds == null) return '—';
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-}
-
-function formatTimestamp(value: string) {
-  const timestamp = new Date(value);
-  return Number.isNaN(timestamp.getTime())
-    ? 'unavailable'
-    : new Intl.DateTimeFormat('en-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }).format(timestamp);
 }

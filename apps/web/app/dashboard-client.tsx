@@ -19,6 +19,7 @@ import {
   MetricCard,
   IntegrationHealthCard,
   PolicySummaryCard,
+  ApprovalQueueCard,
 } from '@recoveryos/ui';
 import {
   CaseDetail,
@@ -301,33 +302,17 @@ export function DashboardClient() {
                 )}
               </Card>
             </div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Approval queue</CardTitle>
-                <Badge>{approvals == null ? 'Unavailable' : `${approvals.length} pending`}</Badge>
-              </CardHeader>
-              {approvals?.length ? (
-                <div className="data-list">
-                  {approvals.map((approval) => (
-                    <div className="data-row" key={approval.decision_id}>
-                      <div>
-                        <p>Case {approval.case_id.slice(0, 8)}</p>
-                        <small>{approval.reason}</small>
-                      </div>
-                      <Badge tone="warning">
-                        {formatMoney(approval.amount_at_risk_minor_units)}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState>
-                  {approvals == null
-                    ? 'Approval visibility is unavailable for this role.'
-                    : 'No pending approvals.'}
-                </EmptyState>
-              )}
-            </Card>
+            <ApprovalQueueCard
+              approvals={
+                approvals?.map((approval) => ({
+                  case_id: approval.case_id,
+                  amount_at_risk_minor_units: approval.amount_at_risk_minor_units,
+                  reason: approval.reason,
+                })) ?? null
+              }
+              formatAmount={formatMoney}
+              onSelect={(caseId) => void loadCaseDetail(caseId)}
+            />
             <Card>
               <CardHeader>
                 <CardTitle>Workflow telemetry</CardTitle>

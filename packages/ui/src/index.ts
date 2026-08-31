@@ -15,3 +15,5 @@ export { PolicySummaryCard } from './components/policy-summary-card';
 export type { PolicySummary } from './components/policy-summary-card';
 export { IntegrationHealthCard } from './components/integration-health-card';
 export type { IntegrationHealth } from './components/integration-health-card';
+export { ApprovalQueueCard } from './components/approval-queue-card';
+export type { ApprovalQueueItem as ApprovalQueueCardItem } from './components/approval-queue-card';

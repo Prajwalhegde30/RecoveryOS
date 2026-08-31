@@ -2,10 +2,16 @@ export type Metrics = Record<string, number | null>;
 export type Dashboard = { metrics: Metrics; freshness: string };
 export type CaseSummary = {
   id: string;
+  obligation_id: string;
   source_type: string;
   status: string;
+  currency: string;
   amount_at_risk_minor_units: number;
+  expected_recoverable_amount_minor_units: number | null;
   recovered_amount_minor_units: number;
+  attribution_status: string;
+  incident_suppressed: boolean;
+  created_at: string;
   priority_score: number | null;
 };
 export type CaseDetail = CaseSummary & {
@@ -15,12 +21,42 @@ export type CaseDetail = CaseSummary & {
   recovery_probability: number | null;
   recovery_attempt_count: number;
   max_attempts: number;
-  recommendations: Array<{ action_type?: string; rationale?: string; confidence?: number }>;
-  policy_decisions: Array<{ result?: string; decisive_rule?: string; reason?: string }>;
-  actions: Array<{ action_type?: string; status?: string; failure_detail_safe?: string | null }>;
-  timeline: Array<{ event_type: string; reason: string; created_at: string }>;
+  recommendations: Array<{
+    action_type?: string;
+    rationale?: string;
+    confidence?: number;
+    source?: string;
+  }>;
+  policy_decisions: Array<{
+    result?: string;
+    decisive_rule?: string;
+    reason?: string;
+    policy_version_id?: string;
+  }>;
+  actions: Array<{
+    action_type?: string;
+    status?: string;
+    failure_detail_safe?: string | null;
+    idempotency_key?: string;
+  }>;
+  timeline: Array<{
+    event_type: string;
+    reason: string;
+    actor_type: string;
+    correlation_id: string;
+    created_at: string;
+  }>;
 };
-export type Incident = { id: string; dimension_key: string; status: string; confidence: number };
+export type Incident = {
+  id: string;
+  dimension_key: string;
+  status: string;
+  confidence: number;
+  baseline_window: Record<string, unknown>;
+  current_window: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  affected_case_ids: string[];
+};
 export type OperationalHealth = {
   components: Record<
     string,
@@ -51,8 +87,9 @@ export class RecoveryOsApiClient {
     return this.get('/api/v1/dashboard');
   }
 
-  cases(): Promise<CaseSummary[]> {
-    return this.get('/api/v1/cases?limit=8');
+  cases(status?: string): Promise<CaseSummary[]> {
+    const query = status ? `&status=${encodeURIComponent(status)}` : '';
+    return this.get(`/api/v1/cases?limit=50${query}`);
   }
 
   incidents(): Promise<Incident[]> {

@@ -34,6 +34,8 @@ export function DashboardClient() {
   const [health, setHealth] = useState<OperationalHealth | null>(null);
   const [policy, setPolicy] = useState<CurrentPolicy | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
+  const [caseStatus, setCaseStatus] = useState('');
+  const [sortByPriority, setSortByPriority] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function DashboardClient() {
     try {
       const [dashboardResult, casesResult, incidentsResult] = await Promise.all([
         api.dashboard(),
-        api.cases(),
+        api.cases(caseStatus || undefined),
         api.incidents(),
       ]);
       setDashboard(dashboardResult);
@@ -71,7 +73,7 @@ export function DashboardClient() {
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, caseStatus]);
 
   const loadCaseDetail = useCallback(
     async (caseId: string) => {
@@ -93,6 +95,10 @@ export function DashboardClient() {
   }, [load]);
 
   const metrics = dashboard?.metrics;
+  const visibleCases = [...cases].sort((left, right) => {
+    if (!sortByPriority) return 0;
+    return (right.priority_score ?? -1) - (left.priority_score ?? -1);
+  });
   const money = (value: number | null | undefined) =>
     value == null
       ? '—'
@@ -152,11 +158,30 @@ export function DashboardClient() {
               <Card>
                 <CardHeader>
                   <CardTitle>Priority recovery cases</CardTitle>
-                  <Badge>{cases.length} shown</Badge>
+                  <div className="card-actions">
+                    <label className="sr-only" htmlFor="case-status">
+                      Filter cases by status
+                    </label>
+                    <select
+                      id="case-status"
+                      value={caseStatus}
+                      onChange={(event) => setCaseStatus(event.target.value)}
+                    >
+                      <option value="">All statuses</option>
+                      <option value="WAITING">Waiting</option>
+                      <option value="RECOVERED">Recovered</option>
+                      <option value="SUPPRESSED">Suppressed</option>
+                      <option value="UNRECOVERED">Unrecovered</option>
+                    </select>
+                    <Button type="button" onClick={() => setSortByPriority((current) => !current)}>
+                      {sortByPriority ? 'Priority order' : 'Newest order'}
+                    </Button>
+                    <Badge>{visibleCases.length} shown</Badge>
+                  </div>
                 </CardHeader>
-                {cases.length ? (
+                {visibleCases.length ? (
                   <div className="data-list">
-                    {cases.map((item) => (
+                    {visibleCases.map((item) => (
                       <button
                         className="data-row data-row-button"
                         key={item.id}
@@ -194,7 +219,10 @@ export function DashboardClient() {
                       <div className="data-row" key={item.id}>
                         <div>
                           <p>{item.dimension_key}</p>
-                          <small>Detector confidence {item.confidence}%</small>
+                          <small>
+                            Detector confidence {item.confidence}% · {item.affected_case_ids.length}{' '}
+                            affected case{item.affected_case_ids.length === 1 ? '' : 's'}
+                          </small>
                         </div>
                         <Badge tone="warning">SUPPRESSING</Badge>
                       </div>
@@ -348,6 +376,42 @@ function CaseDetailPanel({
       <p className="case-detail-note">
         {item.policy_decisions.at(-1)?.reason ?? 'No policy decision recorded yet.'}
       </p>
+      <div className="case-detail-sections">
+        <section>
+          <h3>Recommendation</h3>
+          <p>
+            {item.recommendations.at(-1)?.action_type ?? 'No action recommended'} ·{' '}
+            {item.recommendations.at(-1)?.source ?? 'pending'} · confidence{' '}
+            {item.recommendations.at(-1)?.confidence ?? '—'}
+          </p>
+          <small>{item.recommendations.at(-1)?.rationale ?? 'No rationale recorded.'}</small>
+        </section>
+        <section>
+          <h3>Policy and execution</h3>
+          <p>
+            Decision: {item.policy_decisions.at(-1)?.result ?? 'pending'} · action:{' '}
+            {item.actions.at(-1)?.status ?? 'not scheduled'}
+          </p>
+          <small>{item.actions.at(-1)?.failure_detail_safe ?? 'No safe failure detail.'}</small>
+        </section>
+        <section>
+          <h3>Audit timeline</h3>
+          {item.timeline.length ? (
+            <ol className="timeline-list">
+              {item.timeline.slice(-5).map((event) => (
+                <li key={`${event.correlation_id}-${event.created_at}`}>
+                  <strong>{event.event_type}</strong> — {event.reason}
+                  <small>
+                    {event.actor_type} · {new Date(event.created_at).toLocaleString()}
+                  </small>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <small>No audit events recorded.</small>
+          )}
+        </section>
+      </div>
       <div className="case-detail-actions">
         <Button
           type="button"

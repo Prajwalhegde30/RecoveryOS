@@ -452,6 +452,13 @@ def test_authenticated_action_is_cancelled_when_payment_succeeds_before_executio
         )
         assert reconciled.status_code == 200
         session.rollback()
+        dashboard = client.get("/api/v1/dashboard", headers=auth_headers())
+        assert dashboard.status_code == 200
+        assert dashboard.json()["metrics"]["recovered_minor_units"] == 2500
+        audit = client.get("/api/v1/audit", headers=auth_headers())
+        assert audit.status_code == 200
+        assert any(item["event_type"] == "PAYMENT_RECONCILED" for item in audit.json())
+        session.rollback()
         job = session.get(ScheduledJob, job_id)
         action = session.scalar(
             select(RecoveryAction).where(

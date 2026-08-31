@@ -338,6 +338,7 @@ class JobService:
         *,
         provider_reference: str | None = None,
         cost_minor_units: int = 0,
+        executed_at: datetime | None = None,
         correlation_id: str = "job-complete",
     ) -> ScheduledJob:
         if cost_minor_units < 0:
@@ -355,7 +356,7 @@ class JobService:
                 action.status = "SUCCEEDED"
                 action.provider_reference = provider_reference
                 action.cost_minor_units = cost_minor_units
-                action.executed_at = _utc_naive(datetime.now(UTC))
+                action.executed_at = _utc_naive(executed_at or datetime.now(UTC))
             self.session.add(
                 AuditEvent(
                     merchant_id=self.merchant_id,

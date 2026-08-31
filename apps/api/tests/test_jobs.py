@@ -173,6 +173,24 @@ def test_claim_retry_and_terminal_failure_are_bounded() -> None:
         assert action.status == "FAILED"
 
 
+def test_job_completion_persists_injected_execution_time() -> None:
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        service, job_id, _, _, _ = schedule(session, max_attempts=2)
+        now = datetime(2026, 1, 1, 12, tzinfo=UTC)
+        claimed = service.claim_due(now=now)
+        assert claimed is not None
+        executed_at = now + timedelta(minutes=3)
+        service.complete(job_id, provider_reference="provider-1", executed_at=executed_at)
+        session.rollback()
+        action = session.scalar(
+            select(RecoveryAction).where(RecoveryAction.id == claimed.recovery_action_id)
+        )
+        assert action is not None
+        assert action.executed_at == executed_at.replace(tzinfo=None)
+
+
 def test_cancel_and_expired_lease_recovery_are_safe() -> None:
     engine = create_engine("sqlite://", poolclass=StaticPool)
     Base.metadata.create_all(engine)

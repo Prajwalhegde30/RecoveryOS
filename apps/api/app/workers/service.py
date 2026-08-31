@@ -238,6 +238,7 @@ class WorkerService:
             job_id,
             provider_reference=result.provider_reference,
             cost_minor_units=result.cost_minor_units,
+            executed_at=now,
         )
         self._mark_case_executed(work.case_id)
         return WorkerRunResult("succeeded", job_id)

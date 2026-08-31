@@ -65,6 +65,15 @@ export type OperationalHealth = {
   >;
 };
 export type CurrentPolicy = { version: number; status: string; policy: Record<string, unknown> };
+export type ApprovalQueueItem = {
+  case_id: string;
+  decision_id: string;
+  policy_version_id: string;
+  amount_at_risk_minor_units: number;
+  currency: string;
+  reason: string;
+  created_at: string;
+};
 export type ActionResult = { status?: string; reason?: string; detail?: string };
 export type ApprovalResult = { status?: string; reason?: string; decision_id?: string };
 
@@ -104,6 +113,10 @@ export class RecoveryOsApiClient {
 
   currentPolicy(): Promise<CurrentPolicy> {
     return this.get('/api/v1/policies/current');
+  }
+
+  approvals(): Promise<ApprovalQueueItem[]> {
+    return this.get('/api/v1/approvals');
   }
 
   caseDetail(caseId: string): Promise<CaseDetail> {

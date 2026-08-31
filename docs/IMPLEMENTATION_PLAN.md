@@ -835,6 +835,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Implement incident view with baseline/current health, affected cases, suppression state, and confidence.
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.
   - [x] Add case-detail approval resolution controls through the typed API boundary; server-side Admin authorization and audit remain authoritative.
+  - [x] Add a tenant-scoped approval queue read for unresolved policy decisions and expose it as an optional dashboard operational view.
 - [ ] Keep pages under approximately 400–500 lines by extracting feature sections/components.
 
 **Files / Modules Affected:** `apps/web` route composition/features; `packages/ui/src` reusable additions.

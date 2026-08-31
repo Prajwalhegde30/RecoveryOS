@@ -271,6 +271,7 @@ def test_generated_openapi_keeps_core_contract_paths() -> None:
     assert "/api/v1/cases" in paths
     assert "/api/v1/cases/{case_id}/actions" in paths
     assert "/api/v1/cases/{case_id}/approvals" in paths
+    assert "/api/v1/approvals" in paths
     assert "/webhooks/{provider}" in paths
 
 
@@ -498,6 +499,12 @@ def test_action_command_requires_operator_role_and_persists_blocking_decision() 
         assert blocked.status_code == 200
         assert blocked.json()["status"] == "REQUIRES_APPROVAL"
         assert blocked.json()["job_id"] is None
+        approvals = client.get("/api/v1/approvals", headers=auth_headers())
+        assert approvals.status_code == 200
+        assert approvals.json()[0]["case_id"] == "case-api"
+        assert (
+            client.get("/api/v1/approvals", headers=other_merchant_headers()).json() == []
+        )
         policy_version_id = session.query(PolicyVersion).one().id
         viewer_approval = client.post(
             "/api/v1/cases/case-api/approvals",

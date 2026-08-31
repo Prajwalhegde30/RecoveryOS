@@ -25,6 +25,19 @@ describe('RecoveryOsApiClient', () => {
     });
   });
 
+  it('reads the tenant-scoped approval queue', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+
+    await expect(client.approvals()).resolves.toEqual([]);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://api.test/api/v1/approvals',
+      expect.objectContaining({ headers: { Authorization: 'Bearer token' } }),
+    );
+  });
+
   it('posts approval decisions through the authenticated case boundary', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

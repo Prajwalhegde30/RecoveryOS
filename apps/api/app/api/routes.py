@@ -18,6 +18,7 @@ from app.api.dependencies import (
 from app.api.schemas import (
     ActionCommandRequest,
     ActionCommandResponse,
+    ApprovalQueueItemResponse,
     ApprovalResolutionRequest,
     ApprovalResolutionResponse,
     CaseDetailResponse,
@@ -314,6 +315,46 @@ def incidents(
             )
         )
     return responses
+
+
+@router.get("/approvals", response_model=list[ApprovalQueueItemResponse])
+def approvals(
+    _operator: AuthContext = operator_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> list[ApprovalQueueItemResponse]:
+    """Return the tenant's unresolved approval decisions for operator review."""
+    rows = session.execute(
+        select(PolicyDecision, RecoveryCase, Obligation)
+        .join(RecoveryCase, RecoveryCase.id == PolicyDecision.recovery_case_id)
+        .join(Obligation, Obligation.id == RecoveryCase.obligation_id)
+        .where(
+            PolicyDecision.merchant_id == merchant_id,
+            RecoveryCase.merchant_id == merchant_id,
+            Obligation.merchant_id == merchant_id,
+        )
+        .order_by(PolicyDecision.created_at.desc(), PolicyDecision.id.desc())
+    ).all()
+    pending: list[ApprovalQueueItemResponse] = []
+    seen_cases: set[str] = set()
+    for decision, case, obligation in rows:
+        if case.id in seen_cases:
+            continue
+        seen_cases.add(case.id)
+        if decision.result != "REQUIRE_APPROVAL":
+            continue
+        pending.append(
+            ApprovalQueueItemResponse(
+                case_id=case.id,
+                decision_id=decision.id,
+                policy_version_id=decision.policy_version_id,
+                amount_at_risk_minor_units=obligation.amount_at_risk,
+                currency=obligation.currency,
+                reason=decision.reason,
+                created_at=decision.created_at,
+            )
+        )
+    return pending
 
 
 @router.post("/cases/{case_id}/actions", response_model=ActionCommandResponse)

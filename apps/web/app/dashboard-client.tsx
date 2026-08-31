@@ -20,6 +20,7 @@ import {
   Dashboard,
   Incident,
   OperationalHealth,
+  ApprovalQueueItem,
   RecoveryOsApiClient,
 } from './lib/recoveryos-api';
 
@@ -33,6 +34,7 @@ export function DashboardClient() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [health, setHealth] = useState<OperationalHealth | null>(null);
   const [policy, setPolicy] = useState<CurrentPolicy | null>(null);
+  const [approvals, setApprovals] = useState<ApprovalQueueItem[] | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [caseStatus, setCaseStatus] = useState('');
   const [sortByPriority, setSortByPriority] = useState(true);
@@ -63,12 +65,14 @@ export function DashboardClient() {
       setDashboard(dashboardResult);
       setCases(casesResult);
       setIncidents(incidentsResult);
-      const [healthResult, policyResult] = await Promise.allSettled([
+      const [healthResult, policyResult, approvalsResult] = await Promise.allSettled([
         api.operationalHealth(),
         api.currentPolicy(),
+        api.approvals(),
       ]);
       setHealth(healthResult.status === 'fulfilled' ? healthResult.value : null);
       setPolicy(policyResult.status === 'fulfilled' ? policyResult.value : null);
+      setApprovals(approvalsResult.status === 'fulfilled' ? approvalsResult.value : null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load RecoveryOS data.');
     } finally {
@@ -265,6 +269,31 @@ export function DashboardClient() {
                 )}
               </Card>
             </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Approval queue</CardTitle>
+                <Badge>{approvals == null ? 'Unavailable' : `${approvals.length} pending`}</Badge>
+              </CardHeader>
+              {approvals?.length ? (
+                <div className="data-list">
+                  {approvals.map((approval) => (
+                    <div className="data-row" key={approval.decision_id}>
+                      <div>
+                        <p>Case {approval.case_id.slice(0, 8)}</p>
+                        <small>{approval.reason}</small>
+                      </div>
+                      <Badge tone="warning">{money(approval.amount_at_risk_minor_units)}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState>
+                  {approvals == null
+                    ? 'Approval visibility is unavailable for this role.'
+                    : 'No pending approvals.'}
+                </EmptyState>
+              )}
+            </Card>
             <div className="content-grid">
               <Card>
                 <CardHeader>

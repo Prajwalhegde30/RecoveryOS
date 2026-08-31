@@ -93,6 +93,16 @@ class CurrentPolicyResponse(BaseModel):
     policy: dict[str, Any]
 
 
+class ApprovalQueueItemResponse(BaseModel):
+    case_id: str
+    decision_id: str
+    policy_version_id: str
+    amount_at_risk_minor_units: int
+    currency: str
+    reason: str
+    created_at: datetime
+
+
 class SimulatorRunRequest(BaseModel):
     seed: int
     run_key: str | None = Field(default=None, min_length=1, max_length=255)

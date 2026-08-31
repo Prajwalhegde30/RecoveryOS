@@ -164,6 +164,13 @@ def test_simulator_rejects_overlapping_or_out_of_range_scenarios() -> None:
     else:
         raise AssertionError("event type vectors must match transaction_count")
 
+    try:
+        SimulatorConfig(**base, event_types=(RevenueEventType.PAYMENT_SUCCEEDED,) * 2)
+    except ValueError as exc:
+        assert "recoverable event types" in str(exc)
+    else:
+        raise AssertionError("non-recoverable event types must be rejected")
+
 
 def test_simulator_runs_non_payment_revenue_event_types_through_normal_paths() -> None:
     engine = create_engine("sqlite://", poolclass=StaticPool)

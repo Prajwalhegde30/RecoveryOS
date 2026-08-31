@@ -77,6 +77,8 @@ class SimulatorConfig:
             raise ValueError("payment_methods and failure_codes must not be empty")
         if self.event_types and len(self.event_types) != self.transaction_count:
             raise ValueError("event_types must contain one event type per transaction")
+        if any(event_type not in RECOVERABLE_EVENT_TYPES for event_type in self.event_types):
+            raise ValueError("event_types must contain recoverable event types")
         if len(self.standard_currency) != 3:
             raise ValueError("standard_currency must be an ISO-like three-letter code")
         if self.high_value_indices and self.high_value_amount_minor_units is None:

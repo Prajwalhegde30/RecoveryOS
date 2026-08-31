@@ -142,6 +142,21 @@ export function DashboardClient() {
                 value={money(metrics?.net_recovery_minor_units)}
                 tone="success"
               />
+              <Metric
+                label="Natural recovery"
+                value={money(metrics?.natural_recovered_minor_units)}
+              />
+              <Metric
+                label="Assisted recovery"
+                value={money(metrics?.assisted_recovered_minor_units)}
+              />
+              <Metric label="Recovery cost" value={money(metrics?.recovery_cost_minor_units)} />
+              <Metric
+                label="Recovery rate"
+                value={
+                  metrics?.recovery_rate_percent == null ? '—' : `${metrics.recovery_rate_percent}%`
+                }
+              />
             </div>
             <div className="section-heading">
               <div>
@@ -377,6 +392,10 @@ function CaseDetailPanel({
           <span className="metric-label">Audit events</span>
           <strong>{item.timeline.length}</strong>
         </div>
+        <div>
+          <span className="metric-label">Payment status</span>
+          <strong>{item.attempts.at(-1)?.status ?? 'unknown'}</strong>
+        </div>
       </div>
       <p className="case-detail-note">
         {item.policy_decisions.at(-1)?.reason ?? 'No policy decision recorded yet.'}
@@ -397,7 +416,10 @@ function CaseDetailPanel({
             Decision: {item.policy_decisions.at(-1)?.result ?? 'pending'} · action:{' '}
             {item.actions.at(-1)?.status ?? 'not scheduled'}
           </p>
-          <small>{item.actions.at(-1)?.failure_detail_safe ?? 'No safe failure detail.'}</small>
+          <small>
+            {item.actions.at(-1)?.failure_detail_safe ?? 'No safe failure detail.'} · provider:{' '}
+            {item.attempts.at(-1)?.provider_reference ?? 'not reconciled'}
+          </small>
         </section>
         <section>
           <h3>Audit timeline</h3>

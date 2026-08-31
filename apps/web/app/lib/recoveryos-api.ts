@@ -21,6 +21,7 @@ export type CaseDetail = CaseSummary & {
   recovery_probability: number | null;
   recovery_attempt_count: number;
   max_attempts: number;
+  attempts: Array<{ status?: string; provider?: string; provider_reference?: string | null }>;
   recommendations: Array<{
     action_type?: string;
     rationale?: string;

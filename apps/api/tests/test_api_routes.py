@@ -492,6 +492,58 @@ def test_jwks_mode_does_not_fall_back_to_local_hmac() -> None:
         settings.auth_hmac_secret = previous_auth_secret
 
 
+def test_simulator_endpoint_runs_supported_revenue_sources_through_normal_paths() -> None:
+    session = make_session()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    client = TestClient(app)
+    payload = {
+        "seed": 714,
+        "transaction_count": 4,
+        "amounts_minor_units": [1000],
+        "payment_methods": ["upi"],
+        "failure_codes": ["UPI_TIMEOUT"],
+        "event_types": [
+            "payment.failed",
+            "checkout.abandoned",
+            "subscription.payment_failed",
+            "invoice.overdue",
+        ],
+    }
+    try:
+        response = client.post("/api/v1/simulator/runs", json=payload, headers=auth_headers())
+        assert response.status_code == 200
+        body = response.json()
+        assert body["label"] == "synthetic_simulator_data"
+        assert body["case_count"] == 4
+        assert body["success_event_count"] == 0
+        session.rollback()
+        assert {
+            case.source_type
+            for case in session.scalars(
+                select(RecoveryCase).where(
+                    RecoveryCase.merchant_id == MERCHANT_ID,
+                    RecoveryCase.id.in_(body["case_ids"]),
+                )
+            )
+        } == {
+            "payment.failed",
+            "checkout.abandoned",
+            "subscription.payment_failed",
+            "invoice.overdue",
+        }
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
 def test_case_reads_reject_cross_tenant_obligation_links() -> None:
     session = make_session()
     session.add(

@@ -986,6 +986,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Add E2E harness for the first vertical slice.
   - [x] Maintain the zero-configuration API/web smoke harness and optional authenticated read-path checks; the full browser-driven financial vertical slice remains pending.
   - [x] Add an explicit opt-in authenticated HTTP simulator flow that verifies labeled durable run status, tenant-scoped cases, and derived dashboard metrics without fixed totals.
+  - [x] Assert configured duplicate-event scenarios through the live HTTP harness without allowing duplicate financial effects.
 
 **Files / Modules Affected:** `apps/api/tests`, `apps/web` tests, shared fixtures/scripts, CI.
 

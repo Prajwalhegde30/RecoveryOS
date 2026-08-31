@@ -36,6 +36,21 @@ async function assertAuthenticatedJson(url, token, options = {}, expectedStatus 
   return response.json();
 }
 
+async function waitForActionSuccess(apiBaseUrl, token, caseId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const detail = await assertAuthenticatedJson(
+      `${apiBaseUrl}/api/v1/cases/${encodeURIComponent(caseId)}`,
+      token,
+    );
+    if (detail.actions?.some((action) => action.status === 'SUCCEEDED')) {
+      return detail;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error('worker E2E did not complete the scheduled action before the timeout');
+}
+
 await assertResponse(`${apiBaseUrl}/health/live`, '"status":"ok"');
 await assertResponse(`${apiBaseUrl}/health/ready`, '"status":"ok"');
 await assertResponse(webBaseUrl, 'Revenue recovery control plane');
@@ -62,6 +77,33 @@ if (authToken) {
       throw new Error('worker E2E expected a healthy observed worker heartbeat');
     }
     console.log('Authenticated RecoveryOS worker heartbeat E2E passed.');
+  }
+
+  const actionPayloadText = process.env.E2E_ACTION_PAYLOAD;
+  if (actionPayloadText) {
+    const caseId = process.env.E2E_ACTION_CASE_ID;
+    const timeoutMs = Number(process.env.E2E_WORKER_TIMEOUT_MS);
+    if (!caseId || !Number.isInteger(timeoutMs) || timeoutMs <= 0) {
+      throw new Error(
+        'E2E_ACTION_CASE_ID and a positive integer E2E_WORKER_TIMEOUT_MS are required',
+      );
+    }
+    let actionPayload;
+    try {
+      actionPayload = JSON.parse(actionPayloadText);
+    } catch {
+      throw new Error('E2E_ACTION_PAYLOAD must be valid JSON');
+    }
+    const scheduled = await assertAuthenticatedJson(
+      `${apiBaseUrl}/api/v1/cases/${encodeURIComponent(caseId)}/actions`,
+      authToken,
+      { method: 'POST', body: JSON.stringify(actionPayload) },
+    );
+    if (scheduled.case_id !== caseId || typeof scheduled.job_id !== 'string') {
+      throw new Error('worker E2E did not return a durable scheduled job');
+    }
+    await waitForActionSuccess(apiBaseUrl, authToken, caseId, timeoutMs);
+    console.log('Authenticated RecoveryOS worker action E2E passed.');
   }
 
   const simulatorPayload = process.env.E2E_SIMULATOR_PAYLOAD;

@@ -328,6 +328,7 @@ def request_action(
             idempotency_key=request.idempotency_key,
             due_at=request.due_at,
             actor_id=_operator.subject,
+            actor_role=_operator.role,
             channel=request.channel,
             recommendation_id=request.recommendation_id,
         )

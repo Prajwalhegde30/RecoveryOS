@@ -854,11 +854,11 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Validate effective role from the tenant membership tables rather than trusting client role headers/claims.
 - [x] Add production JWKS/approved identity-provider verification with an asymmetric algorithm allow-list; production mode cannot silently fall back to local HMAC validation.
 - [ ] Complete authorization for manual retry, intervention, approval, policy, integrations, and audit operations.
-- [ ] Add effective-role context to all privileged audit records.
+- [x] Add effective-role context to the implemented privileged action-command audit record; future privileged operation records must follow the same contract.
 
 **Files / Modules Affected:** `apps/api/app/auth`, auth dependencies/configuration, membership queries, API routes, web auth header wiring.
 
-**Tests:** Missing/expired/invalid token, signature/issuer/audience validation, membership-backed role, Admin-only simulator route, cross-tenant denial, asymmetric JWKS validation, algorithm rejection, and JWKS claim failures. Full operation role matrix remains pending.
+**Tests:** Missing/expired/invalid token, signature/issuer/audience validation, membership-backed role, Admin-only simulator route, cross-tenant denial, asymmetric JWKS validation, algorithm rejection, JWKS claim failures, no-JWKS-to-HMAC fallback, and effective-role audit context. Full operation role matrix remains pending.
 
 **Sprint Exit Criteria:** PARTIAL — every implemented versioned read path and simulator start route enforces validated identity and merchant membership, and both explicit local and JWKS validation paths are tested; complete mutation role coverage remains required before Phase 14 completion.
 

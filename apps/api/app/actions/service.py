@@ -64,6 +64,7 @@ class ActionCommandService:
         idempotency_key: str,
         due_at: datetime,
         actor_id: str,
+        actor_role: str | None = None,
         channel: Channel | None = None,
         recommendation_id: str | None = None,
         correlation_id: str = "action-command",
@@ -145,7 +146,10 @@ class ActionCommandService:
                     actor_type=ActorType.OPERATOR,
                     actor_id=actor_id,
                     reason=evaluation.reason,
-                    metadata_safe_json={"decisive_rule": evaluation.decisive_rule},
+                    metadata_safe_json={
+                        "decisive_rule": evaluation.decisive_rule,
+                        "effective_role": actor_role,
+                    },
                     correlation_id=correlation_id,
                 )
             )

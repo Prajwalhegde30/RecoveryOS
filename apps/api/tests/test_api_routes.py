@@ -2,7 +2,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, time, timedelta
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -255,6 +255,24 @@ def test_versioned_routes_require_explicit_tenant_scope() -> None:
     assert response.status_code == 401
 
 
+def test_jwks_mode_does_not_fall_back_to_local_hmac() -> None:
+    settings = get_settings()
+    previous_mode = settings.auth_mode
+    previous_jwks_url = settings.auth_jwks_url
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_mode = "jwks"
+    settings.auth_jwks_url = None
+    settings.auth_hmac_secret = "test-secret"
+    try:
+        response = TestClient(app).get("/api/v1/cases", headers=auth_headers())
+        assert response.status_code == 503
+        assert response.json()["detail"] == "authentication is not configured"
+    finally:
+        settings.auth_mode = previous_mode
+        settings.auth_jwks_url = previous_jwks_url
+        settings.auth_hmac_secret = previous_auth_secret
+
+
 def test_simulator_endpoint_reuses_seeded_event_identity() -> None:
     session = make_session()
 
@@ -332,6 +350,11 @@ def test_action_command_evaluates_policy_and_is_idempotent() -> None:
         assert first.status_code == 200
         assert first.json()["status"] == "SCHEDULED"
         assert first.json()["job_id"] == second.json()["job_id"]
+        evaluation_audit = session.scalar(
+            select(AuditEvent).where(AuditEvent.event_type == "ACTION_REQUEST_EVALUATED")
+        )
+        assert evaluation_audit is not None
+        assert evaluation_audit.metadata_safe_json["effective_role"] == "ADMIN"
         assert session.query(PolicyVersion).count() == 1
         assert session.query(MerchantPolicy).count() == 1
     finally:

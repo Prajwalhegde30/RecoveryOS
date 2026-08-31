@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai.service import AIRecommendationService
+from app.attribution.service import AttributionConfig, AttributionService
 from app.cases.identity import RECOVERABLE_EVENT_TYPES
 from app.cases.service import RecoveryCaseService
 from app.cases.state_machine import is_open
@@ -17,6 +18,7 @@ from app.events.service import EventIngestionService
 from app.integrations.contracts import PaymentStatus
 from app.integrations.simulated import SimulatedPaymentProvider
 from app.persistence.models import (
+    AttributionRecord,
     Merchant,
     Recommendation,
     RecoveryCase,
@@ -53,6 +55,7 @@ class SimulatorConfig:
         default_factory=lambda: ScoringConfig(50, 10, 20, 50, "scoring-v1")
     )
     max_recovery_attempts: int = 3
+    attribution_window_seconds: int = 3_600
 
     def __post_init__(self) -> None:
         if not self.merchant_ids:
@@ -91,6 +94,8 @@ class SimulatorConfig:
             raise ValueError("natural and assisted recovery indices must not overlap")
         if self.max_recovery_attempts <= 0:
             raise ValueError("max_recovery_attempts must be positive")
+        if self.attribution_window_seconds <= 0:
+            raise ValueError("attribution_window_seconds must be positive")
 
 
 @dataclass(frozen=True)
@@ -167,6 +172,8 @@ class SimulatorService:
 
         persisted_count = self._count_events(event_ids)
         recommendation_count = self._count_recommendations(case_ids)
+        self._attribute_cases(case_ids)
+        self._refresh_recovery_scenario_counts(scenario_counts)
         return SimulatorRunResult(
             seed=self.config.seed,
             label="synthetic_simulator_data",
@@ -350,3 +357,40 @@ class SimulatorService:
             )
             or 0
         )
+
+    def _attribute_cases(self, case_ids: set[str]) -> None:
+        now = datetime.now(UTC)
+        for case_id in sorted(case_ids):
+            case = self.session.scalar(
+                select(RecoveryCase).where(
+                    RecoveryCase.id == case_id,
+                    RecoveryCase.merchant_id.in_(self.config.merchant_ids),
+                )
+            )
+            if case is None:
+                continue
+            AttributionService(
+                self.session,
+                case.merchant_id,
+                AttributionConfig(timedelta(seconds=self.config.attribution_window_seconds)),
+            ).attribute_case(case_id, now=now, correlation_id=f"sim-attribution-{self.config.seed}")
+
+    def _refresh_recovery_scenario_counts(self, scenario_counts: dict[str, int]) -> None:
+        records = self.session.scalars(
+            select(AttributionRecord).where(
+                AttributionRecord.merchant_id.in_(self.config.merchant_ids),
+                AttributionRecord.outcome.in_(
+                    ["NATURAL_RECOVERY", "ASSISTED_RECOVERY"]
+                ),
+            )
+        ).all()
+        natural = sum(record.outcome == "NATURAL_RECOVERY" for record in records)
+        assisted = sum(record.outcome == "ASSISTED_RECOVERY" for record in records)
+        if natural:
+            scenario_counts["natural_recovery"] = natural
+        else:
+            scenario_counts.pop("natural_recovery", None)
+        if assisted:
+            scenario_counts["assisted_recovery"] = assisted
+        else:
+            scenario_counts.pop("assisted_recovery", None)

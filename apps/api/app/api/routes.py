@@ -419,6 +419,7 @@ def run_simulator(
         natural_recovery_indices=frozenset(request.natural_recovery_indices),
         assisted_recovery_indices=frozenset(request.assisted_recovery_indices),
         provider_failure_indices=frozenset(request.provider_failure_indices),
+        attribution_window_seconds=request.attribution_window_seconds,
     )
     try:
         lifecycle = SimulatorLifecycleService(session, merchant_id)

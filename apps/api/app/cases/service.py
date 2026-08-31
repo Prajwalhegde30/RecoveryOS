@@ -1,3 +1,5 @@
+from datetime import UTC
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -75,6 +77,7 @@ class RecoveryCaseService:
                         recovered_amount=0,
                         currency=event.currency,
                         attribution_status="pending",
+                        opened_at=event.occurred_at.astimezone(UTC).replace(tzinfo=None),
                     )
                     self.session.add(case)
                     self.session.flush()

@@ -108,6 +108,7 @@ class SimulatorRunRequest(BaseModel):
     natural_recovery_indices: list[int] = Field(default_factory=list)
     assisted_recovery_indices: list[int] = Field(default_factory=list)
     provider_failure_indices: list[int] = Field(default_factory=list)
+    attribution_window_seconds: int = Field(default=3_600, gt=0)
 
 
 class SimulatorRunResponse(BaseModel):

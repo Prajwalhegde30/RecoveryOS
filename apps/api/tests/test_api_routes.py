@@ -304,6 +304,25 @@ def test_versioned_routes_require_explicit_tenant_scope() -> None:
     assert response.status_code == 401
 
 
+def test_cors_allows_configured_web_origin_and_rejects_other_origins() -> None:
+    client = TestClient(app)
+    allowed = client.options(
+        "/api/v1/dashboard",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "authorization" in allowed.headers["access-control-allow-headers"].lower()
+
+    rejected = client.get("/health/live", headers={"Origin": "https://untrusted.example"})
+    assert rejected.status_code == 200
+    assert "access-control-allow-origin" not in rejected.headers
+
+
 def test_operational_health_marks_stale_worker_heartbeat_degraded() -> None:
     session = make_session()
     session.add(

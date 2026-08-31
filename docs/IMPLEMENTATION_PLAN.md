@@ -990,6 +990,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Verify an assisted-recovery simulator scenario reaches the existing durable WorkerService/provider/reconciliation path and exposes derived assisted metrics.
   - [x] Verify an actual worker CLI process is observed through the authenticated operational-health heartbeat check.
   - [x] Verify a real worker CLI process completes an API-scheduled action and the case API observes the successful action state.
+  - [x] Verify the authenticated browser dashboard renders persisted metrics, applies case filters, and opens case detail without browser fetch or CORS failures.
 
 **Files / Modules Affected:** `apps/api/tests`, `apps/web` tests, shared fixtures/scripts, CI.
 

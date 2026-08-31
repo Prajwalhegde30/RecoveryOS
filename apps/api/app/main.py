@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 
 from app.ai.service import AIRecommendationService
@@ -27,6 +28,14 @@ from app.scoring.service import CaseAnalysisService
 
 settings = get_settings()
 app = FastAPI(title="RecoveryOS API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.web_origin],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Correlation-Id", "X-Webhook-Signature"],
+    expose_headers=["X-Correlation-Id"],
+)
 app.add_middleware(CorrelationRateLimitMiddleware)
 app.include_router(recovery_router)
 db_session_dependency = Depends(get_db_session)

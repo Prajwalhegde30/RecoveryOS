@@ -25,6 +25,25 @@ describe('RecoveryOsApiClient', () => {
     });
   });
 
+  it('binds the browser fetch implementation when no test fetcher is supplied', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ metrics: {}, freshness: 'live' }), { status: 200 }),
+      );
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const client = new RecoveryOsApiClient('http://api.test', 'token');
+      await expect(client.dashboard()).resolves.toEqual({ metrics: {}, freshness: 'live' });
+      expect(fetcher).toHaveBeenCalledWith(
+        'http://api.test/api/v1/dashboard',
+        expect.objectContaining({ headers: { Authorization: 'Bearer token' } }),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('reads the tenant-scoped approval queue', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

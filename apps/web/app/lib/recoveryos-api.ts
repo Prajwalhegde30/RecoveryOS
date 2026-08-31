@@ -104,7 +104,7 @@ export class RecoveryOsApiClient {
   constructor(
     private readonly baseUrl: string,
     private readonly token: string,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = globalThis.fetch.bind(globalThis),
   ) {}
 
   dashboard(): Promise<Dashboard> {

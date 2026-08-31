@@ -985,6 +985,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Cover worker lease recovery, restart behavior, payment races, provider retry/terminal failure, duplicate execution, and controlled execution time.
 - [ ] Add E2E harness for the first vertical slice.
   - [x] Maintain the zero-configuration API/web smoke harness and optional authenticated read-path checks; the full browser-driven financial vertical slice remains pending.
+  - [x] Add an explicit opt-in authenticated HTTP simulator flow that verifies labeled durable run status, tenant-scoped cases, and derived dashboard metrics without fixed totals.
 
 **Files / Modules Affected:** `apps/api/tests`, `apps/web` tests, shared fixtures/scripts, CI.
 

@@ -53,6 +53,17 @@ if (authToken) {
   }
   console.log('Authenticated RecoveryOS read E2E passed: dashboard, cases, health, and metrics.');
 
+  if (process.env.E2E_EXPECT_WORKER === 'true') {
+    const health = await assertAuthenticatedJson(
+      `${apiBaseUrl}/api/v1/health/operational`,
+      authToken,
+    );
+    if (health.components?.worker?.status !== 'healthy') {
+      throw new Error('worker E2E expected a healthy observed worker heartbeat');
+    }
+    console.log('Authenticated RecoveryOS worker heartbeat E2E passed.');
+  }
+
   const simulatorPayload = process.env.E2E_SIMULATOR_PAYLOAD;
   if (simulatorPayload) {
     let configuration;

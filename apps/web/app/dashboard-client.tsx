@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   Badge,
@@ -13,37 +13,15 @@ import {
   ErrorState,
   LoadingState,
 } from '@recoveryos/ui';
-
-type Metrics = Record<string, number | null>;
-type Dashboard = { metrics: Metrics; freshness: string };
-type CaseSummary = {
-  id: string;
-  source_type: string;
-  status: string;
-  amount_at_risk_minor_units: number;
-  recovered_amount_minor_units: number;
-  priority_score: number | null;
-};
-type CaseDetail = CaseSummary & {
-  customer_id: string | null;
-  root_cause: string | null;
-  root_cause_confidence: number | null;
-  recovery_probability: number | null;
-  recovery_attempt_count: number;
-  max_attempts: number;
-  recommendations: Array<{ action_type?: string; rationale?: string; confidence?: number }>;
-  policy_decisions: Array<{ result?: string; decisive_rule?: string; reason?: string }>;
-  actions: Array<{ action_type?: string; status?: string; failure_detail_safe?: string | null }>;
-  timeline: Array<{ event_type: string; reason: string; created_at: string }>;
-};
-type Incident = { id: string; dimension_key: string; status: string; confidence: number };
-type OperationalHealth = {
-  components: Record<
-    string,
-    { status: string; detail: string; pending_jobs?: number; stale_claims?: number }
-  >;
-};
-type CurrentPolicy = { version: number; status: string; policy: Record<string, unknown> };
+import {
+  CaseDetail,
+  CaseSummary,
+  CurrentPolicy,
+  Dashboard,
+  Incident,
+  OperationalHealth,
+  RecoveryOsApiClient,
+} from './lib/recoveryos-api';
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 const merchantId = process.env.NEXT_PUBLIC_MERCHANT_ID ?? '';
@@ -61,6 +39,7 @@ export function DashboardClient() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const api = useMemo(() => new RecoveryOsApiClient(apiBaseUrl, authToken), []);
 
   const load = useCallback(async () => {
     if (!merchantId || !authToken) {
@@ -73,45 +52,41 @@ export function DashboardClient() {
     setLoading(true);
     setError(null);
     try {
-      const headers = { Authorization: `Bearer ${authToken}` };
-      const [dashboardResponse, casesResponse, incidentsResponse, healthResponse, policyResponse] =
-        await Promise.all([
-          fetch(`${apiBaseUrl}/api/v1/dashboard`, { headers }),
-          fetch(`${apiBaseUrl}/api/v1/cases?limit=8`, { headers }),
-          fetch(`${apiBaseUrl}/api/v1/incidents?active_only=true`, { headers }),
-          fetch(`${apiBaseUrl}/api/v1/health/operational`, { headers }),
-          fetch(`${apiBaseUrl}/api/v1/policies/current`, { headers }),
-        ]);
-      if (!dashboardResponse.ok || !casesResponse.ok || !incidentsResponse.ok) {
-        throw new Error('The RecoveryOS API returned a degraded response.');
-      }
-      setDashboard((await dashboardResponse.json()) as Dashboard);
-      setCases((await casesResponse.json()) as CaseSummary[]);
-      setIncidents((await incidentsResponse.json()) as Incident[]);
-      setHealth(healthResponse.ok ? ((await healthResponse.json()) as OperationalHealth) : null);
-      setPolicy(policyResponse.ok ? ((await policyResponse.json()) as CurrentPolicy) : null);
+      const [dashboardResult, casesResult, incidentsResult] = await Promise.all([
+        api.dashboard(),
+        api.cases(),
+        api.incidents(),
+      ]);
+      setDashboard(dashboardResult);
+      setCases(casesResult);
+      setIncidents(incidentsResult);
+      const [healthResult, policyResult] = await Promise.allSettled([
+        api.operationalHealth(),
+        api.currentPolicy(),
+      ]);
+      setHealth(healthResult.status === 'fulfilled' ? healthResult.value : null);
+      setPolicy(policyResult.status === 'fulfilled' ? policyResult.value : null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load RecoveryOS data.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
-  const loadCaseDetail = useCallback(async (caseId: string) => {
-    setDetailLoading(true);
-    setDetailError(null);
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/cases/${caseId}`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      if (!response.ok) throw new Error('Unable to load the selected recovery case.');
-      setSelectedCase((await response.json()) as CaseDetail);
-    } catch (cause) {
-      setDetailError(cause instanceof Error ? cause.message : 'Unable to load case details.');
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
+  const loadCaseDetail = useCallback(
+    async (caseId: string) => {
+      setDetailLoading(true);
+      setDetailError(null);
+      try {
+        setSelectedCase(await api.caseDetail(caseId));
+      } catch (cause) {
+        setDetailError(cause instanceof Error ? cause.message : 'Unable to load case details.');
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [api],
+  );
 
   useEffect(() => {
     void load();
@@ -304,31 +279,7 @@ export function DashboardClient() {
                 onRequestAction={async () => {
                   setActionMessage(null);
                   try {
-                    const response = await fetch(
-                      `${apiBaseUrl}/api/v1/cases/${selectedCase.id}/actions`,
-                      {
-                        method: 'POST',
-                        headers: {
-                          Authorization: `Bearer ${authToken}`,
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          action_type: 'SEND_EMAIL',
-                          idempotency_key: `dashboard-${selectedCase.id}-${crypto.randomUUID()}`,
-                          due_at: new Date().toISOString(),
-                          channel: 'email',
-                        }),
-                      },
-                    );
-                    const result = (await response.json()) as {
-                      status?: string;
-                      reason?: string;
-                      detail?: string;
-                    };
-                    if (!response.ok)
-                      throw new Error(
-                        result.detail ?? 'The recovery action could not be requested.',
-                      );
+                    const result = await api.requestEmailAction(selectedCase.id);
                     setActionMessage(
                       `${result.status ?? 'Processed'}: ${result.reason ?? 'policy evaluated'}`,
                     );

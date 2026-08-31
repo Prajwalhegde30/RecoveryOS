@@ -751,7 +751,9 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Map missing tenant scope and missing cases to safe HTTP error categories.
 - [x] Add typed Pydantic response schemas without exposing provider payloads or domain logic to the web layer.
 - [x] Add pagination, filtering, sorting, explicit tenant scope, and freshness metadata for implemented read paths.
-- [ ] Generate/validate TypeScript client from OpenAPI; complete contract coverage for mutation and operational endpoints in Sprint 12.2.
+- [x] Add an explicit typed web API client covering core reads, case detail, operational health, active policy, and the registered action mutation; keep URL/error parsing centralized at the client boundary.
+- [ ] Generate/validate the client directly from OpenAPI and cover any future mutation endpoints as the contract expands.
+  - [x] Current web client coverage is explicit and tested for dashboard, cases, incidents, policy, health, case detail, and action command paths.
 
 **Files / Modules Affected:** `apps/api/app/api/routes.py`, `schemas.py`, dependency seam, and existing FastAPI application.
 
@@ -782,9 +784,9 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Signature rejection, duplicate webhook, unauthorized simulator/action, stale worker, dependency degraded, case not found, safe error payload.
 
-**Sprint Exit Criteria:** PARTIAL — signed ingestion, Admin simulator start/status/reset, the authenticated action command path, active-policy read, and tenant-scoped operational health read are implemented; approval resolution and full OpenAPI client coverage remain pending.
+**Sprint Exit Criteria:** PARTIAL — signed ingestion, Admin simulator start/status/reset, authenticated action/approval paths, active-policy read, tenant-scoped operational health read, and an explicit typed web client are implemented; generated OpenAPI validation remains pending.
 
-**Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; approval resolution and full OpenAPI client coverage remain pending.
+**Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; generated OpenAPI client validation remains pending.
 
 ## Phase 13 — Merchant Dashboard / Frontend
 

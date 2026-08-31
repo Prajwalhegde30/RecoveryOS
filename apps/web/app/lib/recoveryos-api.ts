@@ -89,6 +89,39 @@ export type ApprovalQueueItem = {
 };
 export type ActionResult = { status?: string; reason?: string; detail?: string };
 export type ApprovalResult = { status?: string; reason?: string; decision_id?: string };
+export type SimulatorRunRequest = {
+  seed: number;
+  run_key?: string;
+  transaction_count: number;
+  amounts_minor_units: number[];
+  payment_methods: string[];
+  failure_codes: string[];
+  event_types?: string[];
+  high_value_indices?: number[];
+  high_value_amount_minor_units?: number;
+  duplicate_event_indices?: number[];
+  opt_out_indices?: number[];
+  incident_indices?: number[];
+  natural_recovery_indices?: number[];
+  assisted_recovery_indices?: number[];
+  provider_failure_indices?: number[];
+  attribution_window_seconds?: number;
+};
+export type SimulatorRun = {
+  run_id: string;
+  status: string;
+  seed: number;
+  label: string;
+  persisted_event_count: number | null;
+  duplicate_event_count: number | null;
+  case_count: number | null;
+  recommendation_count: number | null;
+  success_event_count: number | null;
+  scenario_counts: Record<string, number> | null;
+  event_ids: string[];
+  case_ids: string[];
+  error_safe: string | null;
+};
 
 export class RecoveryOsApiError extends Error {
   constructor(
@@ -168,6 +201,18 @@ export class RecoveryOsApiClient {
         ? 'Approved from the merchant dashboard.'
         : 'Rejected from the merchant dashboard.',
     });
+  }
+
+  startSimulator(configuration: SimulatorRunRequest): Promise<SimulatorRun> {
+    return this.post('/api/v1/simulator/runs', configuration);
+  }
+
+  simulatorRun(runId: string): Promise<SimulatorRun> {
+    return this.get(`/api/v1/simulator/runs/${encodeURIComponent(runId)}`);
+  }
+
+  resetSimulator(runId: string): Promise<SimulatorRun> {
+    return this.post(`/api/v1/simulator/runs/${encodeURIComponent(runId)}/reset`, {});
   }
 
   private async get<T>(path: string): Promise<T> {

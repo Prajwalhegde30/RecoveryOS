@@ -127,6 +127,43 @@ describe('RecoveryOsApiClient', () => {
     );
   });
 
+  it('covers the authenticated simulator lifecycle through typed methods', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ run_id: 'run-1', status: 'COMPLETED' }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ run_id: 'run-1', status: 'COMPLETED' }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ run_id: 'run-1', status: 'RESET' }), { status: 200 }),
+      );
+    const client = new RecoveryOsApiClient('http://api.test', 'token', fetcher);
+    const configuration = {
+      seed: 7,
+      transaction_count: 1,
+      amounts_minor_units: [2500],
+      payment_methods: ['upi'],
+      failure_codes: ['UPI_TIMEOUT'],
+    };
+
+    await expect(client.startSimulator(configuration)).resolves.toEqual({
+      run_id: 'run-1',
+      status: 'COMPLETED',
+    });
+    await expect(client.simulatorRun('run/1')).resolves.toEqual({
+      run_id: 'run-1',
+      status: 'COMPLETED',
+    });
+    await expect(client.resetSimulator('run/1')).resolves.toEqual({
+      run_id: 'run-1',
+      status: 'RESET',
+    });
+    expect(fetcher.mock.calls[1]?.[0]).toBe('http://api.test/api/v1/simulator/runs/run%2F1');
+    expect(fetcher.mock.calls[2]?.[0]).toBe('http://api.test/api/v1/simulator/runs/run%2F1/reset');
+  });
+
   it('normalizes safe API errors with status', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

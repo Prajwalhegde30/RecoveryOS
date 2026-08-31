@@ -277,7 +277,7 @@ Identity provider integration and local token handling require careful environme
 Every mutation and tenant query receives an authenticated scope; UI hiding is never security.
 
 **Status**  
-Proposed — pending security architecture review.
+Accepted for the current implementation baseline; production identity-provider onboarding, key rotation operations, and deployment-specific issuer/audience values remain environment decisions.
 
 ## ADR-010 — Deterministic scoring with replaceable AI recommendation
 

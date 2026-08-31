@@ -107,10 +107,11 @@ API_HOST
 API_PORT
 WEB_ORIGIN
 DATABASE_URL
-JWT_ISSUER
-JWT_AUDIENCE
-JWT_JWKS_URL
-JWT_SIGNING_SECRET          # local/demo only; never commit
+AUTH_ISSUER
+AUTH_AUDIENCE
+AUTH_MODE                  # local or jwks
+AUTH_JWKS_URL              # required in jwks mode
+AUTH_HMAC_SECRET           # local/demo only; never commit
 RAZORPAY_KEY_ID
 RAZORPAY_KEY_SECRET         # server-only
 RAZORPAY_WEBHOOK_SECRET     # server-only
@@ -122,7 +123,7 @@ LOG_LEVEL
 SIMULATOR_SEED
 ```
 
-These are variable categories, not currently implemented configuration names. The implementation must validate required variables and keep secrets out of browser bundles/logs.
+The authentication variables above map to the API settings names. `AUTH_MODE=jwks` requires `AUTH_JWKS_URL` and validates asymmetric provider-issued JWTs; it never falls back to HMAC. `AUTH_MODE=local` requires `AUTH_HMAC_SECRET` for the deterministic demo path. Keep secrets out of browser bundles and logs.
 
 ## Database and migrations
 

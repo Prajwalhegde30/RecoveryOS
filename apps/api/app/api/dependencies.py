@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.service import AuthContext, AuthError, decode_token
+from app.auth.service import AuthContext, AuthError, decode_jwks_token, decode_token
 from app.config import get_settings
 from app.persistence.base import build_engine, build_session_factory
 from app.persistence.models import MerchantMembership, User
@@ -36,18 +36,37 @@ def get_auth_context(
             detail="bearer authentication is required",
         )
     settings = get_settings()
-    if not settings.auth_hmac_secret:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="authentication is not configured",
-        )
     try:
-        token_context = decode_token(
-            authorization[7:].strip(),
-            secret=settings.auth_hmac_secret,
-            issuer=settings.auth_issuer,
-            audience=settings.auth_audience,
-        )
+        token = authorization[7:].strip()
+        if settings.auth_mode == "local":
+            if not settings.auth_hmac_secret:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="authentication is not configured",
+                )
+            token_context = decode_token(
+                token,
+                secret=settings.auth_hmac_secret,
+                issuer=settings.auth_issuer,
+                audience=settings.auth_audience,
+            )
+        elif settings.auth_mode == "jwks":
+            if not settings.auth_jwks_url:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="authentication is not configured",
+                )
+            token_context = decode_jwks_token(
+                token,
+                jwks_url=settings.auth_jwks_url,
+                issuer=settings.auth_issuer,
+                audience=settings.auth_audience,
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="authentication is not configured",
+            )
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
     membership = session.scalar(

@@ -838,7 +838,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 14 — Authentication, Authorization & Tenant Isolation
 
-### Sprint 14.1 — Identity and RBAC enforcement — FOUNDATION COMPLETE
+### Sprint 14.1 — Identity and RBAC enforcement — JWKS FOUNDATION COMPLETE
 
 **Sprint Objective:** Enforce API-validated identity and Viewer/Operator/Admin permissions.
 
@@ -852,14 +852,15 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Implement local demo identity separately from client-provided merchant headers; effective role comes from merchant membership persistence.
 - [x] Enforce authenticated tenant scope on implemented read routes and Admin-only simulator start.
 - [x] Validate effective role from the tenant membership tables rather than trusting client role headers/claims.
-- [ ] Add production JWKS/approved identity-provider adapter and complete authorization for manual retry, intervention, approval, policy, integrations, and audit operations.
+- [x] Add production JWKS/approved identity-provider verification with an asymmetric algorithm allow-list; production mode cannot silently fall back to local HMAC validation.
+- [ ] Complete authorization for manual retry, intervention, approval, policy, integrations, and audit operations.
 - [ ] Add effective-role context to all privileged audit records.
 
 **Files / Modules Affected:** `apps/api/app/auth`, auth dependencies/configuration, membership queries, API routes, web auth header wiring.
 
-**Tests:** Missing/expired/invalid token, signature/issuer/audience validation, membership-backed role, Admin-only simulator route, cross-tenant denial. Full operation role matrix and JWKS tests remain pending.
+**Tests:** Missing/expired/invalid token, signature/issuer/audience validation, membership-backed role, Admin-only simulator route, cross-tenant denial, asymmetric JWKS validation, algorithm rejection, and JWKS claim failures. Full operation role matrix remains pending.
 
-**Sprint Exit Criteria:** FOUNDATION COMPLETE — every implemented versioned read path and simulator start route enforces validated identity and merchant membership; complete mutation role coverage and production JWKS remain required before Phase 14 completion.
+**Sprint Exit Criteria:** PARTIAL — every implemented versioned read path and simulator start route enforces validated identity and merchant membership, and both explicit local and JWKS validation paths are tested; complete mutation role coverage remains required before Phase 14 completion.
 
 ### Sprint 14.2 — Tenant isolation verification
 
@@ -885,7 +886,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Isolation tests pass for every tenant-owned aggregate and no endpoint derives scope from untrusted body data.
 
-**Phase 14 Exit Criteria:** Authentication, RBAC, authorization, and tenant isolation are enforced server-side and audited across every implemented operation; full mutation coverage, JWKS provider integration, and all-aggregate isolation verification remain pending.
+**Phase 14 Exit Criteria:** Authentication, RBAC, authorization, and tenant isolation are enforced server-side and audited across every implemented operation; full mutation coverage and all-aggregate isolation verification remain pending.
 
 ## Phase 15 — Security, Audit & Observability
 

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     ai_schema_version: str = "recommendation-v1"
     auth_issuer: str = "recoveryos-local"
     auth_audience: str = "recoveryos-api"
+    auth_mode: str = "local"
+    auth_jwks_url: str | None = None
     auth_hmac_secret: str | None = None
     rate_limit_max_requests: int = Field(default=120, gt=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)

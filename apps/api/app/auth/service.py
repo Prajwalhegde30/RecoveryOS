@@ -6,7 +6,10 @@ import hmac
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import Any
+
+import jwt
 
 
 class AuthError(ValueError):
@@ -100,6 +103,57 @@ def decode_token(
         role=role or "",
         correlation_id=correlation_id if isinstance(correlation_id, str) else None,
     )
+
+
+def decode_jwks_token(
+    token: str,
+    *,
+    jwks_url: str,
+    issuer: str,
+    audience: str,
+) -> AuthContext:
+    """Validate an asymmetric provider-issued JWT against a configured JWKS endpoint."""
+    if not token or not jwks_url or not issuer or not audience:
+        raise AuthError("token validation is not configured")
+    try:
+        header = jwt.get_unverified_header(token)
+        algorithm = header.get("alg")
+        if algorithm not in {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"}:
+            raise AuthError("unsupported token algorithm")
+        signing_key = _jwks_client(jwks_url).get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=[algorithm],
+            audience=audience,
+            issuer=issuer,
+            options={"require": ["sub", "iss", "aud", "exp", "merchant_id"]},
+        )
+    except AuthError:
+        raise
+    except (jwt.PyJWTError, ValueError, OSError) as exc:
+        raise AuthError("bearer token could not be verified") from exc
+    if not isinstance(payload, dict):
+        raise AuthError("bearer token claims are incomplete")
+    required = ("sub", "iss", "aud", "merchant_id")
+    if any(not isinstance(payload.get(key), str) for key in required):
+        raise AuthError("bearer token claims are incomplete")
+    role = payload.get("role")
+    if role is not None and not isinstance(role, str):
+        raise AuthError("bearer token role is invalid")
+    correlation_id = payload.get("correlation_id")
+    return AuthContext(
+        subject=payload["sub"],
+        issuer=payload["iss"],
+        merchant_id=payload["merchant_id"],
+        role=role or "",
+        correlation_id=correlation_id if isinstance(correlation_id, str) else None,
+    )
+
+
+@lru_cache(maxsize=8)
+def _jwks_client(jwks_url: str) -> jwt.PyJWKClient:
+    return jwt.PyJWKClient(jwks_url)
 
 
 def _encode_json(value: dict[str, Any]) -> str:

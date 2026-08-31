@@ -20,6 +20,7 @@ from app.persistence.models import (
     RecoveryCase,
     RecoveryCaseStatus,
     ScheduledJob,
+    WorkerHeartbeat,
 )
 from app.reconciliation.service import PaymentReconciliationService
 from app.workers.contracts import (
@@ -28,6 +29,7 @@ from app.workers.contracts import (
     PreflightResult,
     WorkItem,
 )
+from app.workers.heartbeat import WorkerHeartbeatService
 from app.workers.service import ProviderPreflightChecker, WorkerService
 
 
@@ -43,6 +45,20 @@ class FakeExecutor:
             self.failure = None
             raise failure
         return ActionExecutionResult(provider_reference="provider-1", cost_minor_units=25)
+
+
+def test_worker_heartbeat_is_tenant_scoped_and_upserted() -> None:
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        heartbeat = WorkerHeartbeatService(session, "merchant-heartbeat", "worker-a")
+        heartbeat.beat()
+        heartbeat.beat(status="degraded", detail_safe="provider unavailable")
+        rows = session.scalars(select(WorkerHeartbeat)).all()
+        assert len(rows) == 1
+        assert rows[0].merchant_id == "merchant-heartbeat"
+        assert rows[0].status == "degraded"
+        assert rows[0].detail_safe == "provider unavailable"
 
 
 class FakePreflight:

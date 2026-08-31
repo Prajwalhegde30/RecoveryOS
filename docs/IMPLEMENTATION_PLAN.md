@@ -775,16 +775,16 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Add a registered-action command endpoint for Operator/Admin users with server-side policy rechecks, persisted policy decisions, policy-version traceability, and durable idempotent scheduling; provider execution remains worker-owned.
 - [x] Add an authenticated tenant-scoped read for the active typed merchant policy and its effective version.
 - [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.
-- [ ] Add worker and integration health endpoints.
-  - [x] Add tenant-scoped operational health reporting for database query status, pending jobs, expired leases, and safe simulated provider status; worker heartbeat remains explicitly unknown until a worker heartbeat registry exists.
+- [x] Add worker and integration health endpoints.
+  - [x] Add tenant-scoped operational health reporting for database query status, pending jobs, expired leases, safe simulated provider status, and persisted worker heartbeat status.
 
 **Files / Modules Affected:** API routes/dependencies, simulator/application services, health checks.
 
 **Tests:** Signature rejection, duplicate webhook, unauthorized simulator/action, stale worker, dependency degraded, case not found, safe error payload.
 
-**Sprint Exit Criteria:** PARTIAL — signed ingestion, Admin simulator start/status/reset, the authenticated action command path, active-policy read, and tenant-scoped operational health read are implemented; approval resolution, real worker/integration heartbeat health, and full OpenAPI client coverage remain pending.
+**Sprint Exit Criteria:** PARTIAL — signed ingestion, Admin simulator start/status/reset, the authenticated action command path, active-policy read, and tenant-scoped operational health read are implemented; approval resolution and full OpenAPI client coverage remain pending.
 
-**Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; authenticated mutation, simulator lifecycle, worker/integration health, and full OpenAPI client coverage remain pending.
+**Phase 12 Exit Criteria:** API is typed, tenant-ready, safe, testable, and sufficient for dashboard/E2E integration; approval resolution and full OpenAPI client coverage remain pending.
 
 ## Phase 13 — Merchant Dashboard / Frontend
 
@@ -935,7 +935,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** PARTIAL — an authenticated operator can inspect tenant-scoped database, job, lease, and simulated-provider signals with correlation IDs; worker heartbeat, real integration health, metrics, alerts, and deeper structured observability remain pending.
 
-**Phase 15 Exit Criteria:** Security, audit, health, metrics, structured logging, and operational visibility meet PRD/NFR expectations.
+**Phase 15 Exit Criteria:** Security, audit, health, metrics, structured logging, and operational visibility meet PRD/NFR expectations; persisted worker heartbeat and safe dependency health are implemented, while broader metrics/alerts and hardening remain pending.
 
 ## Phase 16 — Testing, Reliability & Failure Scenarios
 

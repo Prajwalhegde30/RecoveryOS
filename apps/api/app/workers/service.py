@@ -30,6 +30,7 @@ from app.workers.contracts import (
     PreflightResult,
     WorkItem,
 )
+from app.workers.heartbeat import WorkerHeartbeatService
 
 
 class DefaultPreflightChecker:
@@ -163,12 +164,14 @@ class WorkerService:
         jobs: JobService,
         executor: ActionExecutor,
         preflight: PreflightChecker | None = None,
+        worker_id: str = "worker",
     ) -> None:
         self.session = session
         self.merchant_id = merchant_id
         self.jobs = jobs
         self.executor = executor
         self.preflight = preflight or DefaultPreflightChecker()
+        self.heartbeat = WorkerHeartbeatService(session, merchant_id, worker_id)
 
     def startup_reconcile(self, *, now: datetime) -> int:
         return self.jobs.recover_expired_leases(now=now)
@@ -268,7 +271,9 @@ class WorkerService:
         if poll_interval_seconds <= 0:
             raise ValueError("poll_interval_seconds must be positive")
         self.startup_reconcile(now=clock())
+        self.heartbeat.beat()
         while not stop_event.is_set():
+            self.heartbeat.beat()
             self.process_once(now=clock())
             stop_event.wait(poll_interval_seconds)
 

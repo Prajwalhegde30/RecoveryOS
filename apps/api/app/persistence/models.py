@@ -391,6 +391,21 @@ class SimulatorRun(TimestampMixin, Base):
     )
 
 
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), nullable=False)
+    worker_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    detail_safe: Mapped[str] = mapped_column(String(255), nullable=False)
+    __table_args__ = (
+        UniqueConstraint("merchant_id", "worker_id", name="uq_worker_heartbeat_identity"),
+        Index("ix_worker_heartbeats_merchant_seen", "merchant_id", "last_seen_at"),
+    )
+
+
 class Incident(Base):
     __tablename__ = "incidents"
 

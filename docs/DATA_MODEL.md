@@ -194,7 +194,11 @@ The application reserves an action idempotency key before provider execution. Re
 
 Recovered revenue is tied to one obligation and one verified payment identity. Attribution and reporting aggregate the reconciled case amount once, then apply explicit refund/reversal adjustments. Incident totals, message delivery, clicks, recommendations, and duplicate webhooks are never revenue sources.
 
-## 6. Migration strategy
+## 6. Operational worker heartbeat
+
+`worker_heartbeats` is an operational, tenant-scoped registry rather than a financial domain entity. A worker upserts one row per `(merchant_id, worker_id)` while its loop is active. The API reads the latest `last_seen_at`, status, and safe detail to expose worker health without treating a missing heartbeat as proof of financial failure. Heartbeats contain no secrets or provider payloads and do not create Recovery Cases, payment attempts, or recovered revenue.
+
+## 7. Migration strategy
 
 1. Create a baseline migration for merchant, identity, obligation, event, case, attempt, policy, action, job, incident, experiment, attribution, and audit tables.
 2. Add foreign keys, check constraints, unique constraints, and operational indexes in the same or dependent migrations.
@@ -203,6 +207,6 @@ Recovered revenue is tied to one obligation and one verified payment identity. A
 5. Validate constraints and reconciliation queries before removing or renaming fields.
 6. Preserve old policy/scoring versions needed to explain historical decisions.
 
-## 7. Data retention and privacy baseline
+## 8. Data retention and privacy baseline
 
 Retention periods are configuration/deployment decisions and remain `OPEN` until security architecture approval. The implementation must minimize PII, redact logs, protect customer fields by role, encrypt managed storage/in-transit data, and provide an auditable archival/deletion process that does not silently destroy financial or audit evidence.

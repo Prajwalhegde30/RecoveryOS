@@ -45,6 +45,7 @@ from app.persistence.models import (
     RecoveryAction,
     RecoveryCase,
     ScheduledJob,
+    WorkerHeartbeat,
 )
 from app.policy.service import PolicyService
 from app.simulator.lifecycle import SimulatorLifecycleResult, SimulatorLifecycleService
@@ -109,6 +110,11 @@ def operational_health(
         )
         or 0
     )
+    heartbeat = session.scalar(
+        select(WorkerHeartbeat)
+        .where(WorkerHeartbeat.merchant_id == merchant_id)
+        .order_by(WorkerHeartbeat.last_seen_at.desc())
+    )
     payment_health = SimulatedPaymentProvider().health()
     messaging_health = SimulatedMessagingProvider().health()
     return OperationalHealthResponse(
@@ -117,11 +123,15 @@ def operational_health(
         components={
             "database": ComponentHealthResponse(status="healthy", detail="tenant query succeeded"),
             "worker": ComponentHealthResponse(
-                status="degraded" if stale_claims else "unknown",
+                status=(
+                    "degraded" if stale_claims else heartbeat.status if heartbeat else "unknown"
+                ),
                 detail=(
                     "claimed jobs have expired leases"
                     if stale_claims
-                    else "worker heartbeat is not registered in this API process"
+                    else heartbeat.detail_safe
+                    if heartbeat
+                    else "worker heartbeat is not registered"
                 ),
                 pending_jobs=pending_jobs,
                 stale_claims=stale_claims,

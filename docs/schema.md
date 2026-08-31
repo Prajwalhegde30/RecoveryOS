@@ -172,6 +172,16 @@ Unless implementation proves a necessary change, table and column intent must re
 **Lifecycle:** Repeated starts reuse a completed run. Reset is non-destructive and clears only the stored result/lifecycle state; generated events, obligations, cases, payment facts, actions, and attribution are preserved.
 **Financial:** Synthetic run metadata and counters never establish financial truth.
 
+### worker_heartbeats
+
+**Purpose:** Persist safe liveness signals from durable workers so the API can expose operational status across processes.  
+**Status:** IMPLEMENTED in ORM metadata and the next Alembic migration; production rollout remains environment-dependent.  
+**Columns:** \`id\` PK; \`merchant_id\` FK; \`worker_id\`; \`status\`; \`last_seen_at\`; safe detail.  
+**Constraints:** Unique \`(merchant_id,worker_id)\`; no financial or provider-secret fields.  
+**Indexes:** \`(merchant_id,last_seen_at)\` supports latest-heartbeat health reads.  
+**Lifecycle:** Workers upsert their heartbeat while running. Missing or stale records are a health signal only and do not mutate Recovery Cases or financial totals.  
+**Tenant scope:** Every read and upsert is constrained by authenticated/configured merchant scope.
+
 ### experiments
 
 **Purpose:** Optional Stretch control/treatment configuration; not required for MVP case-level attribution.

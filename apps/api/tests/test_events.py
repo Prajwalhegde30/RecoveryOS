@@ -14,6 +14,7 @@ from app.events.contracts import RevenueEvent, RevenueEventType
 from app.events.security import verify_signature
 from app.events.service import EventIngestionService
 from app.main import app
+from app.observability.metrics import OperationalMetricsService
 from app.persistence.base import Base
 from app.persistence.models import (
     AuditEvent,
@@ -105,6 +106,12 @@ def test_event_ingestion_is_idempotent_and_persists_normalized_facts() -> None:
             )
             == 2
         )
+        metrics = OperationalMetricsService(session, "merchant_1").calculate()
+        assert metrics["events_received"] == 1
+        assert metrics["events_duplicate"] == 2
+        assert OperationalMetricsService(session, "other-merchant").calculate()[
+            "events_received"
+        ] == 0
 
 
 def test_failed_event_can_be_replayed_without_new_identity() -> None:

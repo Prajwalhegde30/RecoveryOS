@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 15 request hardening/correlation foundation complete; authenticated action scheduling is implemented, while simulator lifecycle, feature views, full authorization/JWKS, and deeper observability remain next
+**Current repository:** Phases 0–11 are implemented; Phase 12 has authenticated typed API and OpenAPI path coverage, Phase 13 has a usable operational dashboard slice, Phase 14 has membership-backed auth/JWKS and implemented-route isolation coverage, and Phase 15 has rate limiting, correlation, startup security validation, worker heartbeat, and safe error handling. Remaining work is simulator action/attribution integration, broader operations UI, complete observability/audit hardening, and final resilience/demo gates.
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -48,14 +48,15 @@ The repository began without implementation artifacts. Phases 0–4 now provide 
 - Deterministic policy precedence evaluation, authoritative obligation amount sourcing, policy decision persistence, approval escalation/resolution, and policy audit records.
 - Policy-version traceability on recovery actions and scheduled jobs, PostgreSQL-backed durable scheduling, action/job idempotency, transactional claims, lease recovery, cancellation, bounded backoff, terminal failure handling, and a provider-independent worker core with two-stage preflight and graceful shutdown.
 - SDK-neutral payment and messaging adapter contracts, typed provider failures/health, deterministic simulated payment/messaging providers, registered-action provider routing, and configurable AI adapter composition.
-- Seeded simulator event runner with configured inputs, reproducible event identities, duplicate/opt-out/incident/natural/assisted/high-value/provider-failure scenario controls, normal ingestion/case/scoring/fallback/reconciliation execution, synthetic labeling, and database-derived counts.
+- Seeded simulator event runner with configured inputs, reproducible event identities, duplicate/opt-out/incident/natural/assisted/high-value/provider-failure scenario controls, normal ingestion/case/scoring/fallback/reconciliation execution, synthetic labeling, and database-derived counts; worker-executed assisted attribution remains a Phase 17 integration gap.
 - Provider-confirmed reconciliation for success, refund, and reversal events; exactly-once recovered amount handling; future-work cancellation; in-flight action audit handling; and safe provider-verification outcomes.
 - Server-side customer opt-out application that cancels future work, closes open cases, prevents analysis/recommendation for newly detected opted-out cases, and is enforced again in last-mile worker preflight.
 - Provider-aware two-stage worker preflight plus an adapter-level final payment check, with payment verification failures retried safely and no new effect attempted without a confirmed failed payment state.
 
-### Missing
+### Remaining or deployment-defined
 
-- Incident detection, attribution, frontend, auth, metrics, and deployment. External SDK/credential composition remains deployment-specific; the simulator's synthetic recovery scenarios now reconcile through the same provider-confirmed application service used by non-simulator integrations.
+- Complete simulator worker/action/attribution integration, broader dashboard operations, aggregate isolation review, structured workflow metrics/alerts, PII/secret/dependency hardening, and final resilience/demo validation.
+- External SDK/credential composition, PostgreSQL runtime deployment, TLS, secret rotation, backup/restore, and scaling remain deployment-specific.
 - PostgreSQL migration runtime, local Docker Compose, and baseline SQLAlchemy metadata are present; PostgreSQL runtime verification remains environment-dependent.
 - Later phase documents such as event, state-machine, API, AI, policy, security, testing, observability, attribution, runbook, and demo contracts.
 

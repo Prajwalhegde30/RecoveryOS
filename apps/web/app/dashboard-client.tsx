@@ -39,6 +39,7 @@ export function DashboardClient() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const api = useMemo(() => new RecoveryOsApiClient(apiBaseUrl, authToken), []);
@@ -335,6 +336,7 @@ export function DashboardClient() {
               <CaseDetailPanel
                 item={selectedCase}
                 actionMessage={actionMessage}
+                approvalMessage={approvalMessage}
                 onRequestAction={async () => {
                   setActionMessage(null);
                   try {
@@ -351,6 +353,28 @@ export function DashboardClient() {
                     );
                   }
                 }}
+                onResolveApproval={async (approved) => {
+                  const policyDecision = selectedCase.policy_decisions.at(-1);
+                  if (!policyDecision?.policy_version_id) return;
+                  setApprovalMessage(null);
+                  try {
+                    const result = await api.resolveApproval(
+                      selectedCase.id,
+                      policyDecision.policy_version_id,
+                      approved,
+                    );
+                    setApprovalMessage(
+                      `${result.status ?? 'Processed'}: ${result.reason ?? 'approval recorded'}`,
+                    );
+                    await loadCaseDetail(selectedCase.id);
+                  } catch (cause) {
+                    setApprovalMessage(
+                      cause instanceof Error
+                        ? cause.message
+                        : 'The approval decision could not be recorded.',
+                    );
+                  }
+                }}
               />
             ) : null}
           </>
@@ -363,12 +387,18 @@ export function DashboardClient() {
 function CaseDetailPanel({
   item,
   actionMessage,
+  approvalMessage,
   onRequestAction,
+  onResolveApproval,
 }: {
   item: CaseDetail;
   actionMessage: string | null;
+  approvalMessage: string | null;
   onRequestAction: () => Promise<void>;
+  onResolveApproval: (approved: boolean) => Promise<void>;
 }) {
+  const pendingApproval = item.policy_decisions.at(-1)?.result === 'REQUIRE_APPROVAL';
+  const policyVersionId = item.policy_decisions.at(-1)?.policy_version_id;
   return (
     <Card className="case-detail-card">
       <CardHeader>
@@ -459,6 +489,17 @@ function CaseDetailPanel({
           Request email recovery
         </Button>
         {actionMessage ? <p className="case-detail-note">{actionMessage}</p> : null}
+        {pendingApproval && policyVersionId ? (
+          <>
+            <Button type="button" onClick={() => void onResolveApproval(true)}>
+              Approve action
+            </Button>
+            <Button type="button" onClick={() => void onResolveApproval(false)}>
+              Reject action
+            </Button>
+            {approvalMessage ? <p className="case-detail-note">{approvalMessage}</p> : null}
+          </>
+        ) : null}
       </div>
     </Card>
   );

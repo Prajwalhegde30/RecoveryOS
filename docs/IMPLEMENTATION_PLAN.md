@@ -834,13 +834,14 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Add the typed case-detail inspection panel for root cause, probability, attempts, persisted recommendations, policy decisions, actions, and recent audit timeline.
 - [x] Implement incident view with baseline/current health, affected cases, suppression state, and confidence.
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.
+  - [x] Add case-detail approval resolution controls through the typed API boundary; server-side Admin authorization and audit remain authoritative.
 - [ ] Keep pages under approximately 400–500 lines by extracting feature sections/components.
 
 **Files / Modules Affected:** `apps/web` route composition/features; `packages/ui/src` reusable additions.
 
 **Tests:** Route rendering, API loading/error/degraded states, permission presentation, case timeline, policy conflict display, dashboard metric formatting, E2E navigation.
 
-**Sprint Exit Criteria:** PARTIAL — the merchant can filter/sort cases, inspect persisted case decision evidence and audit timeline, review active policy and operational health, request the registered email action, and view all currently available MVP financial metrics; charts, policy/integration/approval views, and broader action UX remain pending. Experiment lift remains optional Stretch.
+**Sprint Exit Criteria:** PARTIAL — the merchant can filter/sort cases, inspect persisted case decision evidence and audit timeline, review active policy and operational health, request the registered email action, resolve a persisted approval when authorized by the API, and view all currently available MVP financial metrics; charts, broader policy/integration views, and broader action UX remain pending. Experiment lift remains optional Stretch.
 
 **Phase 13 Exit Criteria:** PARTIAL — the responsive shell and initial case inspection are usable without domain logic in components; full operational dashboard and case/incident/policy workflows remain pending.
 

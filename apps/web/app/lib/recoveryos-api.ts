@@ -66,6 +66,7 @@ export type OperationalHealth = {
 };
 export type CurrentPolicy = { version: number; status: string; policy: Record<string, unknown> };
 export type ActionResult = { status?: string; reason?: string; detail?: string };
+export type ApprovalResult = { status?: string; reason?: string; decision_id?: string };
 
 export class RecoveryOsApiError extends Error {
   constructor(
@@ -115,6 +116,20 @@ export class RecoveryOsApiClient {
       idempotency_key: `dashboard-${caseId}-${crypto.randomUUID()}`,
       due_at: new Date().toISOString(),
       channel: 'email',
+    });
+  }
+
+  resolveApproval(
+    caseId: string,
+    policyVersionId: string,
+    approved: boolean,
+  ): Promise<ApprovalResult> {
+    return this.post(`/api/v1/cases/${encodeURIComponent(caseId)}/approvals`, {
+      policy_version_id: policyVersionId,
+      approved,
+      reason: approved
+        ? 'Approved from the merchant dashboard.'
+        : 'Rejected from the merchant dashboard.',
     });
   }
 

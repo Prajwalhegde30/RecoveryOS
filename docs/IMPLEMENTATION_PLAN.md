@@ -829,7 +829,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Implement case detail timeline/recommendation/policy/action/reconciliation views.
   - [x] Add a bounded dashboard action command for the registered email recovery action and surface server policy outcomes.
   - [x] Add the typed case-detail inspection panel for root cause, probability, attempts, persisted recommendations, policy decisions, actions, and recent audit timeline.
-- [ ] Implement incident view with baseline/current health, affected cases, suppression, resolution, and confidence.
+- [x] Implement incident view with baseline/current health, affected cases, suppression state, and confidence.
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.
 - [ ] Keep pages under approximately 400–500 lines by extracting feature sections/components.
 
@@ -907,7 +907,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [x] Add bounded configuration-driven rate limiting for webhook and simulator request families; distributed limiting remains deployment-defined.
-- [ ] Add secret redaction, environment validation, rotation/revocation hooks, TLS/deployment checks, and encrypted managed storage assumptions.
+- [x] Add startup environment validation for supported auth modes and mandatory production JWKS/webhook configuration; secret rotation/revocation hooks, TLS/deployment checks, and encrypted managed storage remain deployment work.
 - [ ] Minimize PII, redact logs, and enforce role-based customer-context access.
 - [ ] Audit policy/config/integration changes, approvals, manual actions, simulator runs, reconciliations, security events, and state changes.
 - [ ] Add dependency/security scanning and safe error responses.

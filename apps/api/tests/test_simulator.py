@@ -5,6 +5,7 @@ from sqlalchemy.pool import StaticPool
 from app.persistence.base import Base
 from app.persistence.models import (
     Obligation,
+    PaymentAttempt,
     Recommendation,
     RecoveryCase,
     RecoveryCaseStatus,
@@ -58,6 +59,7 @@ def test_seeded_simulator_uses_normal_paths_and_reports_persisted_facts() -> Non
         }
         assert session.scalar(select(func.count()).select_from(RevenueEvent)) == 10
         assert session.scalar(select(func.count()).select_from(RecoveryCase)) == 6
+        assert session.scalar(select(func.count()).select_from(PaymentAttempt)) == 6
         assert session.scalar(select(func.count()).select_from(Recommendation)) == 6
         assert all(event.provider == "simulator" for event in session.scalars(select(RevenueEvent)))
         recovered_cases = session.scalars(

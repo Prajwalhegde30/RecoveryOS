@@ -272,7 +272,10 @@ class SimulatorService:
             update={
                 "event_id": f"sim-{self.config.seed}-success-{index}",
                 "event_type": RevenueEventType.PAYMENT_SUCCEEDED,
-                "payment_id": f"sim-payment-{self.config.seed}-{index}-success",
+                # A success is a later state for the same provider payment
+                # attempt, not a new payment identity. This keeps simulator
+                # reconciliation aligned with the production event contract.
+                "payment_id": base_event.payment_id,
                 "failure_code": None,
             }
         )

@@ -30,6 +30,7 @@ Merchant 1──* RecoveryCase 1──* PaymentAttempt
 Merchant 1──* MerchantPolicy 1──* PolicyVersion
 Merchant 1──* Experiment 1──* ExperimentAssignment
 Merchant 1──* AuditEvent
+Merchant 1──* SimulatorRun
 RevenueEvent *──1 ProcessedEvent identity
 ```
 
@@ -127,6 +128,17 @@ Jobs are durable, claimable, cancellable, and replayable only through idempotent
 
 An incident is not an obligation and cannot be included in revenue-at-risk or recovered totals.
 
+### simulator_runs
+
+Represents one tenant-scoped synthetic simulator request and its lifecycle. Fields are `id` PK,
+`merchant_id` FK, `run_key`, `seed`, `status`, `label`, `configuration_json`, optional
+`result_json`, optional `started_at`, optional `completed_at`, optional `error_safe`, and the
+standard created/updated timestamps. Unique `(merchant_id, run_key)` makes repeated starts
+idempotent. Reset changes lifecycle state and clears the stored result; it does not delete or
+rewrite generated events, obligations, cases, payment facts, actions, or attribution facts.
+
+Simulator records are synthetic operational provenance, never a source of financial truth.
+
 ### experiments and assignments
 
 `experiments`: `id` PK, `merchant_id` FK, `name`, `status`, `control_ratio`, `treatment_ratio`, `attribution_window`, `eligibility_json`, `created_at`, `updated_at`.  
@@ -158,6 +170,7 @@ Required uniqueness:
 - one attribution record per case;
 - merchant-scoped action idempotency key;
 - merchant-scoped scheduled-job idempotency key.
+- merchant-scoped simulator run key.
 
 Required indexes include merchant + status, merchant + priority, merchant + created time, merchant + due time, open cases by obligation/customer, unprocessed events, due jobs by status/due time, active incidents by dimension/status, audit entity/time, and experiment assignments by experiment/variant.
 

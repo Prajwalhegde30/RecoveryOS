@@ -95,6 +95,7 @@ class CurrentPolicyResponse(BaseModel):
 
 class SimulatorRunRequest(BaseModel):
     seed: int
+    run_key: str | None = Field(default=None, min_length=1, max_length=255)
     transaction_count: int
     amounts_minor_units: list[int]
     payment_methods: list[str]
@@ -110,16 +111,19 @@ class SimulatorRunRequest(BaseModel):
 
 
 class SimulatorRunResponse(BaseModel):
+    run_id: str
+    status: str
     seed: int
     label: str
-    persisted_event_count: int
-    duplicate_event_count: int
-    case_count: int
-    recommendation_count: int
-    success_event_count: int
-    scenario_counts: dict[str, int]
-    event_ids: tuple[str, ...]
-    case_ids: tuple[str, ...]
+    persisted_event_count: int | None = None
+    duplicate_event_count: int | None = None
+    case_count: int | None = None
+    recommendation_count: int | None = None
+    success_event_count: int | None = None
+    scenario_counts: dict[str, int] | None = None
+    event_ids: tuple[str, ...] = ()
+    case_ids: tuple[str, ...] = ()
+    error_safe: str | None = None
 
 
 class ActionCommandRequest(BaseModel):

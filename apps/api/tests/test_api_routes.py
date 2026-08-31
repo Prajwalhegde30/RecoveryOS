@@ -239,7 +239,19 @@ def test_simulator_endpoint_reuses_seeded_event_identity() -> None:
         assert first.status_code == 200
         assert first.json()["label"] == "synthetic_simulator_data"
         assert second.status_code == 200
-        assert second.json()["duplicate_event_count"] >= 1
+        assert second.json()["run_id"] == first.json()["run_id"]
+        assert second.json()["status"] == "COMPLETED"
+        status_response = client.get(
+            f"/api/v1/simulator/runs/{first.json()['run_id']}", headers=auth_headers()
+        )
+        assert status_response.status_code == 200
+        assert status_response.json()["case_ids"] == first.json()["case_ids"]
+        reset = client.post(
+            f"/api/v1/simulator/runs/{first.json()['run_id']}/reset",
+            headers=auth_headers(),
+        )
+        assert reset.status_code == 200
+        assert reset.json()["status"] == "RESET"
     finally:
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret

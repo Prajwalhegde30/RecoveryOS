@@ -147,7 +147,7 @@ pnpm test            Run the current workspace tests
 pnpm build           Build the current workspace artifacts
 ```
 
-Worker, simulator, and product workflow commands will be added only when their implementation phases begin. The database migration command is available now.
+The API simulator lifecycle is available through authenticated Admin routes, while the standalone worker command remains an implementation/runtime concern. The database migration command is available now.
 
 ## Testing
 

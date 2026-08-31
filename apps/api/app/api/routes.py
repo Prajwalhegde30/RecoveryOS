@@ -47,7 +47,8 @@ from app.persistence.models import (
     ScheduledJob,
 )
 from app.policy.service import PolicyService
-from app.simulator.service import SimulatorConfig, SimulatorService
+from app.simulator.lifecycle import SimulatorLifecycleResult, SimulatorLifecycleService
+from app.simulator.service import SimulatorConfig
 
 router = APIRouter(prefix="/api/v1", tags=["recovery"])
 db_session_dependency = Depends(get_db_session)
@@ -154,6 +155,8 @@ def current_policy(
         status=version_status,
         policy=policy_document,
     )
+
+
 @router.get("/cases", response_model=list[CaseSummaryResponse])
 def cases(
     status_filter: str | None = Query(default=None, alias="status"),
@@ -350,45 +353,68 @@ def run_simulator(
     merchant_id: str = merchant_scope_dependency,
     session: Session = db_session_dependency,
 ) -> SimulatorRunResponse:
-    # The simulator owns its application-service transactions; discard any read
-    # transaction opened by a prior request on a reused test/session boundary.
+    # The simulator owns its application-service transactions; lifecycle state is
+    # persisted before/after the generated facts and is never a source of money.
     session.rollback()
+    config = SimulatorConfig(
+        seed=request.seed,
+        merchant_ids=(merchant_id,),
+        transaction_count=request.transaction_count,
+        amounts_minor_units=tuple(request.amounts_minor_units),
+        payment_methods=tuple(request.payment_methods),
+        failure_codes=tuple(request.failure_codes),
+        high_value_indices=frozenset(request.high_value_indices),
+        high_value_amount_minor_units=request.high_value_amount_minor_units,
+        duplicate_event_indices=frozenset(request.duplicate_event_indices),
+        opt_out_indices=frozenset(request.opt_out_indices),
+        incident_indices=frozenset(request.incident_indices),
+        natural_recovery_indices=frozenset(request.natural_recovery_indices),
+        assisted_recovery_indices=frozenset(request.assisted_recovery_indices),
+        provider_failure_indices=frozenset(request.provider_failure_indices),
+    )
     try:
-        result = SimulatorService(
-            session,
-            SimulatorConfig(
-                seed=request.seed,
-                merchant_ids=(merchant_id,),
-                transaction_count=request.transaction_count,
-                amounts_minor_units=tuple(request.amounts_minor_units),
-                payment_methods=tuple(request.payment_methods),
-                failure_codes=tuple(request.failure_codes),
-                high_value_indices=frozenset(request.high_value_indices),
-                high_value_amount_minor_units=request.high_value_amount_minor_units,
-                duplicate_event_indices=frozenset(request.duplicate_event_indices),
-                opt_out_indices=frozenset(request.opt_out_indices),
-                incident_indices=frozenset(request.incident_indices),
-                natural_recovery_indices=frozenset(request.natural_recovery_indices),
-                assisted_recovery_indices=frozenset(request.assisted_recovery_indices),
-                provider_failure_indices=frozenset(request.provider_failure_indices),
-            ),
-        ).run()
+        lifecycle = SimulatorLifecycleService(session, merchant_id)
+        run = lifecycle.start(
+            config,
+            run_key=request.run_key or f"seed:{request.seed}",
+            actor_id=_admin.subject,
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
-    return SimulatorRunResponse(
-        seed=result.seed,
-        label=result.label,
-        persisted_event_count=result.persisted_event_count,
-        duplicate_event_count=result.duplicate_event_count,
-        case_count=result.case_count,
-        recommendation_count=result.recommendation_count,
-        success_event_count=result.success_event_count,
-        scenario_counts=result.scenario_counts,
-        event_ids=result.event_ids,
-        case_ids=result.case_ids,
-    )
+    return _simulator_response(run)
+
+
+@router.get("/simulator/runs/{run_id}", response_model=SimulatorRunResponse)
+def simulator_run_status(
+    run_id: str,
+    _admin: AuthContext = admin_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> SimulatorRunResponse:
+    try:
+        return _simulator_response(SimulatorLifecycleService(session, merchant_id).get(run_id))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/simulator/runs/{run_id}/reset", response_model=SimulatorRunResponse)
+def reset_simulator_run(
+    run_id: str,
+    _admin: AuthContext = admin_dependency,
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> SimulatorRunResponse:
+    try:
+        result = SimulatorLifecycleService(session, merchant_id).reset(
+            run_id, actor_id=_admin.subject, correlation_id="simulator-reset"
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return _simulator_response(result)
 
 
 def _summary(case: RecoveryCase, obligation: Obligation) -> CaseSummaryResponse:
@@ -405,6 +431,25 @@ def _summary(case: RecoveryCase, obligation: Obligation) -> CaseSummaryResponse:
         priority_score=case.priority_score,
         incident_suppressed=case.incident_suppressed,
         created_at=case.created_at,
+    )
+
+
+def _simulator_response(result: SimulatorLifecycleResult) -> SimulatorRunResponse:
+    run = result.result
+    return SimulatorRunResponse(
+        run_id=result.run_id,
+        status=result.status,
+        seed=run.seed if run else 0,
+        label=run.label if run else "synthetic_simulator_data",
+        persisted_event_count=run.persisted_event_count if run else None,
+        duplicate_event_count=run.duplicate_event_count if run else None,
+        case_count=run.case_count if run else None,
+        recommendation_count=run.recommendation_count if run else None,
+        success_event_count=run.success_event_count if run else None,
+        scenario_counts=run.scenario_counts if run else None,
+        event_ids=run.event_ids if run else (),
+        case_ids=run.case_ids if run else (),
+        error_safe=result.error_safe,
     )
 
 

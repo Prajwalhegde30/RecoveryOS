@@ -371,6 +371,26 @@ class ScheduledJob(TimestampMixin, Base):
     )
 
 
+class SimulatorRun(TimestampMixin, Base):
+    __tablename__ = "simulator_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), nullable=False)
+    run_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    seed: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    configuration_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    result_json: Mapped[dict | None] = mapped_column(JSON)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    error_safe: Mapped[str | None] = mapped_column(String(512))
+    __table_args__ = (
+        UniqueConstraint("merchant_id", "run_key", name="uq_simulator_run_key"),
+        Index("ix_simulator_runs_merchant_status", "merchant_id", "status"),
+    )
+
+
 class Incident(Base):
     __tablename__ = "incidents"
 

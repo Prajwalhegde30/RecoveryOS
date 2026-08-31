@@ -771,7 +771,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 - [x] Retain the signed webhook endpoint and safe receipt response implemented in the event-ingestion boundary.
 - [x] Add a tenant-scoped simulator start endpoint using deterministic seeded event identity; repeated seeds remain idempotent through normal ingestion.
-- [ ] Add simulator status/reset controls with an authenticated Admin boundary and persisted run identity.
+- [x] Add simulator status/reset controls with an authenticated Admin boundary and persisted run identity; reset is non-destructive and repeated run keys are idempotent.
 - [x] Add a registered-action command endpoint for Operator/Admin users with server-side policy rechecks, persisted policy decisions, policy-version traceability, and durable idempotent scheduling; provider execution remains worker-owned.
 - [x] Add an authenticated tenant-scoped read for the active typed merchant policy and its effective version.
 - [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.

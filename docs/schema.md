@@ -1,6 +1,6 @@
 # RecoveryOS Proposed Database Schema
 
-**Status:** PROPOSED SCHEMA — no migrations or database implementation exist yet  
+**Status:** PROPOSED SCHEMA — the canonical conceptual model is implemented through SQLAlchemy metadata and versioned Alembic migrations; production rollout remains environment-dependent  
 **Conceptual source:** [DATA_MODEL.md](./DATA_MODEL.md)  
 **Runtime direction:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Persistence access:** [data_API.md](./data_API.md)
@@ -162,6 +162,16 @@ Unless implementation proves a necessary change, table and column intent must re
 **Primary key:** `(incident_id,recovery_case_id)`.  
 **Lifecycle:** Association remains for audit even after resolution.
 
+### simulator_runs
+
+**Purpose:** Persist the lifecycle and reproducibility identity of a synthetic simulator request.
+**Status:** IMPLEMENTED in ORM metadata and the next Alembic migration; deployment rollout remains environment-dependent.
+**Columns:** `id` PK; `merchant_id` FK; `run_key`; `seed`; `status`; `label`; `configuration_json`; optional `result_json`; optional `started_at`, `completed_at`, and `error_safe`; `created_at`; `updated_at`.
+**Constraints:** Unique `(merchant_id,run_key)`; run status is `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, or `RESET`.
+**Indexes:** `(merchant_id,status)` supports tenant-scoped lifecycle operations.
+**Lifecycle:** Repeated starts reuse a completed run. Reset is non-destructive and clears only the stored result/lifecycle state; generated events, obligations, cases, payment facts, actions, and attribution are preserved.
+**Financial:** Synthetic run metadata and counters never establish financial truth.
+
 ### experiments
 
 **Purpose:** Optional Stretch control/treatment configuration; not required for MVP case-level attribution.
@@ -220,4 +230,4 @@ No table may represent message delivery, AI output, incident count, or simulator
 
 ## 11. Implementation status audit
 
-All tables and constraints in this document are `PROPOSED SCHEMA`. No migrations, ORM models, database, or seed data currently exist in the repository.
+The conceptual schema remains the canonical reference. Concrete tables through simulator lifecycle are implemented in `apps/api/app/persistence/models.py` and versioned migrations; any table or constraint not represented there remains `PROPOSED SCHEMA` until implemented.

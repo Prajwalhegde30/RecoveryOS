@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-This is the implementation-oriented schema reference for the canonical conceptual data model. It describes proposed PostgreSQL tables, columns, relationships, constraints, indexes, lifecycle, tenant scope, retention, and financial invariants. It is not evidence that these tables already exist; implementation begins in Phase 1 through versioned migrations.
+This is the implementation-oriented schema reference for the canonical conceptual data model. It describes PostgreSQL tables, columns, relationships, constraints, indexes, lifecycle, tenant scope, retention, and financial invariants. Each section distinguishes implemented metadata/migrations from remaining proposed shape; implementation is delivered incrementally through versioned migrations.
 
 Unless implementation proves a necessary change, table and column intent must remain aligned with `DATA_MODEL.md`.
 

@@ -910,7 +910,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Add startup environment validation for supported auth modes and mandatory production JWKS/webhook configuration; secret rotation/revocation hooks, TLS/deployment checks, and encrypted managed storage remain deployment work.
 - [ ] Minimize PII, redact logs, and enforce role-based customer-context access.
 - [ ] Audit policy/config/integration changes, approvals, manual actions, simulator runs, reconciliations, security events, and state changes.
-- [ ] Add dependency/security scanning and safe error responses.
+- [x] Add safe correlated error responses that redact internal exception details; dependency/security scanning remains pending.
 
 **Files / Modules Affected:** API middleware/configuration and request correlation; audit/logging hardening remains pending.
 
@@ -928,7 +928,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement structured logs with correlation and entity IDs; redact secrets/PII.
+- [x] Implement correlated structured request logs and safe unhandled-error responses without exposing exception payloads; broader entity-level structured logging and PII redaction remain pending.
 - [ ] Implement webhook, case, policy, job, worker, provider, AI, incident, action, and recovery metrics.
 - [ ] Implement liveness/readiness and dependency health states.
   - [x] Add an authenticated tenant-scoped operational health read for database, job backlog/lease signals, and safe simulated provider status.

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     auth_issuer: str = "recoveryos-local"
     auth_audience: str = "recoveryos-api"
     auth_hmac_secret: str | None = None
+    rate_limit_max_requests: int = Field(default=120, gt=0)
+    rate_limit_window_seconds: int = Field(default=60, gt=0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

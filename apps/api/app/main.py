@@ -11,12 +11,14 @@ from app.customers.service import CustomerOptOutService
 from app.events.contracts import EventIngestionResult, RevenueEvent, RevenueEventType
 from app.events.security import verify_signature
 from app.events.service import EventIngestionService
+from app.observability.middleware import CorrelationRateLimitMiddleware
 from app.persistence.models import RecoveryCaseStatus
 from app.scoring.economics import ScoringConfig
 from app.scoring.service import CaseAnalysisService
 
 settings = get_settings()
 app = FastAPI(title="RecoveryOS API", version="0.1.0")
+app.add_middleware(CorrelationRateLimitMiddleware)
 app.include_router(recovery_router)
 db_session_dependency = Depends(get_db_session)
 

@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 14 identity/RBAC foundation complete; simulator/API operations, feature views, and full authorization/JWKS hardening remain next
+**Current repository:** Phase 15 request hardening/correlation foundation complete; API operations, feature views, full authorization/JWKS, and deeper observability remain next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -893,17 +893,17 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Add configurable rate limiting for webhook, mutation, auth-sensitive, and simulator endpoints.
+- [x] Add bounded configuration-driven rate limiting for webhook and simulator request families; distributed limiting remains deployment-defined.
 - [ ] Add secret redaction, environment validation, rotation/revocation hooks, TLS/deployment checks, and encrypted managed storage assumptions.
 - [ ] Minimize PII, redact logs, and enforce role-based customer-context access.
 - [ ] Audit policy/config/integration changes, approvals, manual actions, simulator runs, reconciliations, security events, and state changes.
 - [ ] Add dependency/security scanning and safe error responses.
 
-**Files / Modules Affected:** API middleware/config, audit service, auth, logging/redaction, CI security checks.
+**Files / Modules Affected:** API middleware/configuration and request correlation; audit/logging hardening remains pending.
 
-**Tests:** Rate limits, invalid signature no mutation, secret non-leakage, PII redaction, audit completeness, unauthorized operations, dependency check.
+**Tests:** Rate limits, correlation propagation, invalid signature no mutation, secret non-leakage, PII redaction, audit completeness, unauthorized operations, dependency check. Only rate-limit/correlation coverage is currently implemented.
 
-**Sprint Exit Criteria:** Security controls are enforced and tested; audit can reconstruct every material financial/policy/action event.
+**Sprint Exit Criteria:** FOUNDATION COMPLETE — high-risk request limiting and correlation headers are enforced and tested; broader secret/PII/dependency hardening and complete audit review remain required.
 
 ### Sprint 15.2 — Structured observability and health
 

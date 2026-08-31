@@ -87,6 +87,12 @@ class OperationalHealthResponse(BaseModel):
     components: dict[str, ComponentHealthResponse]
 
 
+class CurrentPolicyResponse(BaseModel):
+    version: int
+    status: str
+    policy: dict[str, Any]
+
+
 class SimulatorRunRequest(BaseModel):
     seed: int
     transaction_count: int

@@ -773,6 +773,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [x] Add a tenant-scoped simulator start endpoint using deterministic seeded event identity; repeated seeds remain idempotent through normal ingestion.
 - [ ] Add simulator status/reset controls with an authenticated Admin boundary and persisted run identity.
 - [x] Add a registered-action command endpoint for Operator/Admin users with server-side policy rechecks, persisted policy decisions, policy-version traceability, and durable idempotent scheduling; provider execution remains worker-owned.
+- [x] Add an authenticated tenant-scoped read for the active typed merchant policy and its effective version.
 - [x] Retain liveness/readiness endpoints and expose dashboard freshness for implemented read data.
 - [ ] Add worker and integration health endpoints.
   - [x] Add tenant-scoped operational health reporting for database query status, pending jobs, expired leases, and safe simulated provider status; worker heartbeat remains explicitly unknown until a worker heartbeat registry exists.

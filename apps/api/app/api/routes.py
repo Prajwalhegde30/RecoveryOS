@@ -21,6 +21,7 @@ from app.api.schemas import (
     CaseDetailResponse,
     CaseSummaryResponse,
     ComponentHealthResponse,
+    CurrentPolicyResponse,
     DashboardResponse,
     IncidentResponse,
     OperationalHealthResponse,
@@ -45,6 +46,7 @@ from app.persistence.models import (
     RecoveryCase,
     ScheduledJob,
 )
+from app.policy.service import PolicyService
 from app.simulator.service import SimulatorConfig, SimulatorService
 
 router = APIRouter(prefix="/api/v1", tags=["recovery"])
@@ -133,6 +135,25 @@ def operational_health(
     )
 
 
+@router.get("/policies/current", response_model=CurrentPolicyResponse)
+def current_policy(
+    merchant_id: str = merchant_scope_dependency,
+    session: Session = db_session_dependency,
+) -> CurrentPolicyResponse:
+    session.rollback()
+    active = PolicyService(session, merchant_id).active()
+    if active is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="active policy not found")
+    version, policy = active
+    version_number = version.version
+    version_status = version.status
+    policy_document = policy.model_dump(mode="json")
+    session.rollback()
+    return CurrentPolicyResponse(
+        version=version_number,
+        status=version_status,
+        policy=policy_document,
+    )
 @router.get("/cases", response_model=list[CaseSummaryResponse])
 def cases(
     status_filter: str | None = Query(default=None, alias="status"),

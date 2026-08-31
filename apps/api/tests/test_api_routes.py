@@ -264,6 +264,9 @@ def test_action_command_evaluates_policy_and_is_idempotent() -> None:
         "due_at": "2030-01-01T12:00:00Z",
     }
     try:
+        policy_response = client.get("/api/v1/policies/current", headers=auth_headers())
+        assert policy_response.status_code == 200
+        assert policy_response.json()["status"] == "ACTIVE"
         first = client.post("/api/v1/cases/case-api/actions", json=payload, headers=auth_headers())
         second = client.post("/api/v1/cases/case-api/actions", json=payload, headers=auth_headers())
         assert first.status_code == 200

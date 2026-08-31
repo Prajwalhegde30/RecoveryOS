@@ -6,12 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
+  CaseDetailCard,
   Card,
   CardHeader,
   CardTitle,
   EmptyState,
   ErrorState,
   LoadingState,
+  MetricCard,
 } from '@recoveryos/ui';
 import {
   CaseDetail,
@@ -20,8 +22,8 @@ import {
   Dashboard,
   Incident,
   OperationalHealth,
-  OperationalMetrics,
   ApprovalQueueItem,
+  OperationalMetrics,
   RecoveryOsApiClient,
 } from './lib/recoveryos-api';
 
@@ -133,44 +135,47 @@ export function DashboardClient() {
         {!loading && !error && dashboard ? (
           <>
             <div className="metric-grid" aria-label="Recovery metrics">
-              <Metric label="Revenue at risk" value={money(metrics?.revenue_at_risk_minor_units)} />
-              <Metric
+              <MetricCard
+                label="Revenue at risk"
+                value={money(metrics?.revenue_at_risk_minor_units)}
+              />
+              <MetricCard
                 label="Expected recoverable"
                 value={money(metrics?.expected_recoverable_minor_units)}
               />
-              <Metric
+              <MetricCard
                 label="Recovered"
                 value={money(metrics?.recovered_minor_units)}
                 tone="success"
               />
-              <Metric
+              <MetricCard
                 label="Net recovery"
                 value={money(metrics?.net_recovery_minor_units)}
                 tone="success"
               />
-              <Metric
+              <MetricCard
                 label="Natural recovery"
                 value={money(metrics?.natural_recovered_minor_units)}
               />
-              <Metric
+              <MetricCard
                 label="Assisted recovery"
                 value={money(metrics?.assisted_recovered_minor_units)}
               />
-              <Metric label="Recovery cost" value={money(metrics?.recovery_cost_minor_units)} />
-              <Metric
+              <MetricCard label="Recovery cost" value={money(metrics?.recovery_cost_minor_units)} />
+              <MetricCard
                 label="Recovery rate"
                 value={
                   metrics?.recovery_rate_percent == null ? '—' : `${metrics.recovery_rate_percent}%`
                 }
               />
-              <Metric label="Suppressed" value={money(metrics?.suppressed_minor_units)} />
-              <Metric label="Unrecovered" value={money(metrics?.unrecovered_minor_units)} />
-              <Metric
+              <MetricCard label="Suppressed" value={money(metrics?.suppressed_minor_units)} />
+              <MetricCard label="Unrecovered" value={money(metrics?.unrecovered_minor_units)} />
+              <MetricCard
                 label="Recovered cases"
                 value={integer(metrics?.recovered_case_count)}
                 tone="success"
               />
-              <Metric
+              <MetricCard
                 label="Median time to recovery"
                 value={formatDuration(metrics?.median_time_to_recovery_seconds)}
               />
@@ -387,7 +392,7 @@ export function DashboardClient() {
             {detailLoading ? <LoadingState label="Loading case details…" /> : null}
             {detailError ? <ErrorState message={detailError} /> : null}
             {selectedCase ? (
-              <CaseDetailPanel
+              <CaseDetailCard
                 item={selectedCase}
                 actionMessage={actionMessage}
                 approvalMessage={approvalMessage}
@@ -435,144 +440,6 @@ export function DashboardClient() {
         ) : null}
       </div>
     </main>
-  );
-}
-
-function CaseDetailPanel({
-  item,
-  actionMessage,
-  approvalMessage,
-  onRequestAction,
-  onResolveApproval,
-}: {
-  item: CaseDetail;
-  actionMessage: string | null;
-  approvalMessage: string | null;
-  onRequestAction: () => Promise<void>;
-  onResolveApproval: (approved: boolean) => Promise<void>;
-}) {
-  const pendingApproval = item.policy_decisions.at(-1)?.result === 'REQUIRE_APPROVAL';
-  const policyVersionId = item.policy_decisions.at(-1)?.policy_version_id;
-  return (
-    <Card className="case-detail-card">
-      <CardHeader>
-        <div>
-          <CardTitle>Case {item.id.slice(0, 8)}</CardTitle>
-          <p>
-            {item.root_cause ?? 'Root cause pending'} · {item.status}
-          </p>
-        </div>
-        <Badge tone={item.status === 'RECOVERED' ? 'success' : 'warning'}>
-          {item.recovery_probability == null
-            ? 'Probability pending'
-            : `${item.recovery_probability}% likely`}
-        </Badge>
-      </CardHeader>
-      <div className="case-detail-grid">
-        <div>
-          <span className="metric-label">Attempts</span>
-          <strong>
-            {item.recovery_attempt_count}/{item.max_attempts}
-          </strong>
-        </div>
-        <div>
-          <span className="metric-label">Policy decisions</span>
-          <strong>{item.policy_decisions.length}</strong>
-        </div>
-        <div>
-          <span className="metric-label">Actions</span>
-          <strong>{item.actions.length}</strong>
-        </div>
-        <div>
-          <span className="metric-label">Audit events</span>
-          <strong>{item.timeline.length}</strong>
-        </div>
-        <div>
-          <span className="metric-label">Payment status</span>
-          <strong>{item.attempts.at(-1)?.status ?? 'unknown'}</strong>
-        </div>
-      </div>
-      <p className="case-detail-note">
-        {item.policy_decisions.at(-1)?.reason ?? 'No policy decision recorded yet.'}
-      </p>
-      <div className="case-detail-sections">
-        <section>
-          <h3>Recommendation</h3>
-          <p>
-            {item.recommendations.at(-1)?.action_type ?? 'No action recommended'} ·{' '}
-            {item.recommendations.at(-1)?.source ?? 'pending'} · confidence{' '}
-            {item.recommendations.at(-1)?.confidence ?? '—'}
-          </p>
-          <small>{item.recommendations.at(-1)?.rationale ?? 'No rationale recorded.'}</small>
-        </section>
-        <section>
-          <h3>Policy and execution</h3>
-          <p>
-            Decision: {item.policy_decisions.at(-1)?.result ?? 'pending'} · action:{' '}
-            {item.actions.at(-1)?.status ?? 'not scheduled'}
-          </p>
-          <small>
-            {item.actions.at(-1)?.failure_detail_safe ?? 'No safe failure detail.'} · provider:{' '}
-            {item.attempts.at(-1)?.provider_reference ?? 'not reconciled'}
-          </small>
-        </section>
-        <section>
-          <h3>Audit timeline</h3>
-          {item.timeline.length ? (
-            <ol className="timeline-list">
-              {item.timeline.slice(-5).map((event) => (
-                <li key={`${event.correlation_id}-${event.created_at}`}>
-                  <strong>{event.event_type}</strong> — {event.reason}
-                  <small>
-                    {event.actor_type} · {new Date(event.created_at).toLocaleString()}
-                  </small>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <small>No audit events recorded.</small>
-          )}
-        </section>
-      </div>
-      <div className="case-detail-actions">
-        <Button
-          type="button"
-          onClick={() => void onRequestAction()}
-          disabled={['RECOVERED', 'CANCELLED', 'OPTED_OUT', 'EXHAUSTED'].includes(item.status)}
-        >
-          Request email recovery
-        </Button>
-        {actionMessage ? <p className="case-detail-note">{actionMessage}</p> : null}
-        {pendingApproval && policyVersionId ? (
-          <>
-            <Button type="button" onClick={() => void onResolveApproval(true)}>
-              Approve action
-            </Button>
-            <Button type="button" onClick={() => void onResolveApproval(false)}>
-              Reject action
-            </Button>
-            {approvalMessage ? <p className="case-detail-note">{approvalMessage}</p> : null}
-          </>
-        ) : null}
-      </div>
-    </Card>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: string;
-  tone?: 'neutral' | 'success';
-}) {
-  return (
-    <Card className="metric-card">
-      <span className="metric-label">{label}</span>
-      <strong className={tone === 'success' ? 'metric-success' : ''}>{value}</strong>
-    </Card>
   );
 }
 

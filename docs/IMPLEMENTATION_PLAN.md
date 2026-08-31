@@ -1003,6 +1003,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [ ] Run failed UPI event through signature/idempotency and one Recovery Case.
+  - [x] Add an authenticated HTTP integration regression covering signed failed/success events, authoritative reconciliation, dashboard observation, and duplicate success idempotency.
   - [x] Signed simulator webhook success/refund/reversal events now invoke the existing provider-confirmed reconciliation boundary after event/case association.
 - [ ] Produce root cause, deterministic probability, expected recoverable amount, priority, and recommendation.
 - [ ] Apply policy and schedule a permitted action.

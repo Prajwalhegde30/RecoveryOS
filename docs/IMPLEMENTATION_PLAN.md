@@ -2,7 +2,7 @@
 
 **Status:** Active execution roadmap  
 **Scope:** Buildathon MVP through final demo  
-**Current repository:** Phase 13.1 complete; Phase 12.2 API operations, Phase 13.2 feature views, and Phase 14 authentication/authorization remain next
+**Current repository:** Phase 14 identity/RBAC foundation complete; simulator/API operations, feature views, and full authorization/JWKS hardening remain next
 **Product source of truth:** [PRD.md](./PRD.md)  
 **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md)  
 **Data model:** [DATA_MODEL.md](./DATA_MODEL.md)  
@@ -835,7 +835,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 ## Phase 14 — Authentication, Authorization & Tenant Isolation
 
-### Sprint 14.1 — Identity and RBAC enforcement
+### Sprint 14.1 — Identity and RBAC enforcement — FOUNDATION COMPLETE
 
 **Sprint Objective:** Enforce API-validated identity and Viewer/Operator/Admin permissions.
 
@@ -845,16 +845,18 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tasks**
 
-- [ ] Implement token validation, expiry, issuer/audience checks, and configurable JWKS/signing source.
-- [ ] Implement local demo identity separately from production-like authentication.
-- [ ] Implement API/application authorization for view, manual retry, intervention, approval, policy, integrations, simulator, and audit operations.
-- [ ] Add effective-role context to audit records without trusting client role claims outside validated identity.
+- [x] Implement local bearer-token validation, expiry, issuer/audience checks, and a configurable local signing secret.
+- [x] Implement local demo identity separately from client-provided merchant headers; effective role comes from merchant membership persistence.
+- [x] Enforce authenticated tenant scope on implemented read routes and Admin-only simulator start.
+- [x] Validate effective role from the tenant membership tables rather than trusting client role headers/claims.
+- [ ] Add production JWKS/approved identity-provider adapter and complete authorization for manual retry, intervention, approval, policy, integrations, and audit operations.
+- [ ] Add effective-role context to all privileged audit records.
 
-**Files / Modules Affected:** API auth dependencies, membership repositories, configuration, web auth wiring.
+**Files / Modules Affected:** `apps/api/app/auth`, auth dependencies/configuration, membership queries, API routes, web auth header wiring.
 
-**Tests:** Missing/expired/invalid token, role matrix, Admin-only mutation, Viewer denial, Operator allowed operation, audit actor identity.
+**Tests:** Missing/expired/invalid token, signature/issuer/audience validation, membership-backed role, Admin-only simulator route, cross-tenant denial. Full operation role matrix and JWKS tests remain pending.
 
-**Sprint Exit Criteria:** Every protected API path enforces validated role and merchant scope; UI hiding is not the only control.
+**Sprint Exit Criteria:** FOUNDATION COMPLETE — every implemented versioned read path and simulator start route enforces validated identity and merchant membership; complete mutation role coverage and production JWKS remain required before Phase 14 completion.
 
 ### Sprint 14.2 — Tenant isolation verification
 
@@ -877,7 +879,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Sprint Exit Criteria:** Isolation tests pass for every tenant-owned aggregate and no endpoint derives scope from untrusted body data.
 
-**Phase 14 Exit Criteria:** Authentication, RBAC, authorization, and tenant isolation are enforced server-side and audited.
+**Phase 14 Exit Criteria:** Authentication, RBAC, authorization, and tenant isolation are enforced server-side and audited across every implemented operation; full mutation coverage, JWKS provider integration, and all-aggregate isolation verification remain pending.
 
 ## Phase 15 — Security, Audit & Observability
 

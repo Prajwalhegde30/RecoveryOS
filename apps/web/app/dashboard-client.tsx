@@ -28,6 +28,7 @@ type Incident = { id: string; dimension_key: string; status: string; confidence:
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 const merchantId = process.env.NEXT_PUBLIC_MERCHANT_ID ?? '';
+const authToken = process.env.NEXT_PUBLIC_AUTH_TOKEN ?? '';
 
 export function DashboardClient() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -37,15 +38,17 @@ export function DashboardClient() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!merchantId) {
-      setError('Configure NEXT_PUBLIC_MERCHANT_ID to connect the merchant dashboard.');
+    if (!merchantId || !authToken) {
+      setError(
+        'Configure NEXT_PUBLIC_MERCHANT_ID and NEXT_PUBLIC_AUTH_TOKEN to connect the merchant dashboard.',
+      );
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const headers = { 'X-Merchant-Id': merchantId };
+      const headers = { Authorization: `Bearer ${authToken}` };
       const [dashboardResponse, casesResponse, incidentsResponse] = await Promise.all([
         fetch(`${apiBaseUrl}/api/v1/dashboard`, { headers }),
         fetch(`${apiBaseUrl}/api/v1/cases?limit=8`, { headers }),

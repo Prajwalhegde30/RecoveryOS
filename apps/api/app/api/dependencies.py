@@ -1,12 +1,14 @@
 from collections.abc import Generator
 from functools import lru_cache
-from typing import Annotated
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.service import AuthContext, AuthError, decode_token
 from app.config import get_settings
 from app.persistence.base import build_engine, build_session_factory
+from app.persistence.models import MerchantMembership, User
 
 
 @lru_cache
@@ -20,13 +22,74 @@ def get_db_session() -> Generator[Session, None, None]:
         yield session
 
 
-def get_merchant_scope(
-    merchant_id: Annotated[str | None, Header(alias="X-Merchant-Id")] = None,
-) -> str:
-    """Temporary tenant-scope seam; JWT/RBAC enforcement is added in Phase 14."""
-    if not merchant_id:
+db_session_dependency = Depends(get_db_session)
+
+
+def get_auth_context(
+    request: Request,
+    session: Session = db_session_dependency,
+) -> AuthContext:
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="authenticated merchant scope is required",
+            detail="bearer authentication is required",
         )
-    return merchant_id
+    settings = get_settings()
+    if not settings.auth_hmac_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="authentication is not configured",
+        )
+    try:
+        token_context = decode_token(
+            authorization[7:].strip(),
+            secret=settings.auth_hmac_secret,
+            issuer=settings.auth_issuer,
+            audience=settings.auth_audience,
+        )
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+    membership = session.scalar(
+        select(MerchantMembership.role)
+        .join(User, User.id == MerchantMembership.user_id)
+        .where(
+            MerchantMembership.merchant_id == token_context.merchant_id,
+            User.subject == token_context.subject,
+            User.issuer == token_context.issuer,
+            User.status == "active",
+        )
+    )
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="merchant access denied")
+    return AuthContext(
+        subject=token_context.subject,
+        issuer=token_context.issuer,
+        merchant_id=token_context.merchant_id,
+        role=str(membership),
+        correlation_id=token_context.correlation_id,
+    )
+
+
+auth_context_dependency = Depends(get_auth_context)
+
+
+def get_merchant_scope(context: AuthContext = auth_context_dependency) -> str:
+    return context.merchant_id
+
+
+def require_role(*roles: str):
+    allowed_roles = frozenset(roles)
+
+    def dependency(context: AuthContext = auth_context_dependency) -> AuthContext:
+        if context.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="operation is not permitted for this role",
+            )
+        return context
+
+    return dependency
+
+
+admin_dependency = Depends(require_role("ADMIN"))

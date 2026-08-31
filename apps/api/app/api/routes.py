@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db_session, get_merchant_scope
+from app.api.dependencies import admin_dependency, get_db_session, get_merchant_scope
 from app.api.schemas import (
     CaseDetailResponse,
     CaseSummaryResponse,
@@ -18,6 +18,7 @@ from app.api.schemas import (
     TimelineResponse,
 )
 from app.attribution.metrics import RecoveryMetricsService
+from app.auth.service import AuthContext
 from app.persistence.models import (
     AuditEvent,
     CaseIncident,
@@ -211,6 +212,7 @@ def incidents(
 @router.post("/simulator/runs", response_model=SimulatorRunResponse)
 def run_simulator(
     request: SimulatorRunRequest,
+    _admin: AuthContext = admin_dependency,
     merchant_id: str = merchant_scope_dependency,
     session: Session = db_session_dependency,
 ) -> SimulatorRunResponse:

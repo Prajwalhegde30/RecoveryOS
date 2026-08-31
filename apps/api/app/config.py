@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     ai_timeout_ms: int | None = Field(default=None, gt=0)
     ai_prompt_version: str = "prompt-v1"
     ai_schema_version: str = "recommendation-v1"
+    auth_issuer: str = "recoveryos-local"
+    auth_audience: str = "recoveryos-api"
+    auth_hmac_secret: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

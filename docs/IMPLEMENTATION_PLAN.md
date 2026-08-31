@@ -1026,7 +1026,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Prerequisites:** Sprint 17.1; simulator controls; incident/attribution.
 
-**Dependencies:** Seeded dataset, dashboard, approvals, health, audit, runbook.
+**Dependencies:** Seeded dataset, dashboard, approvals, health, audit, and supported operational recovery procedures.
 
 **Tasks**
 
@@ -1051,7 +1051,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Prerequisites:** Phase 17 complete.
 
-**Dependencies:** Full CI, deployment environment, seeded data, security/test/observability docs.
+**Dependencies:** Full CI, deployment environment, seeded data, and implemented security/test/observability checks.
 
 **Tasks**
 
@@ -1084,7 +1084,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Confirm every synthetic/simulated/sandbox label and remove any misleading claim.
 - [ ] Capture final dashboard/case/incident/audit views and recovery metrics.
 
-**Files / Modules Affected:** Demo configuration/scripts, dashboard content, simulator, final release docs.
+**Files / Modules Affected:** Demo configuration/scripts, dashboard content, simulator, and release configuration.
 
 **Tests:** Full demo rehearsal from clean state; reset/re-run same seed; verify expected relationships rather than fixed totals.
 

@@ -928,6 +928,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 - [ ] Minimize PII, redact logs, and enforce role-based customer-context access.
   - [x] Prevent raw exception messages and tracebacks from entering the request log while retaining structured correlation and safe error metadata.
   - [x] Prevent simulator failure details from persisting raw exception text; expose only a safe operator message while retaining the correlated failure audit event.
+  - [x] Verify the case-detail API contract exposes only an opaque customer reference and excludes customer contact fields.
 - [ ] Audit policy/config/integration changes, approvals, manual actions, simulator runs, reconciliations, security events, and state changes.
   - [x] Expose recent safe audit facts through a bounded tenant-scoped Operator/Admin read and the dashboard activity view; case-level audit timelines remain available for detailed reconstruction.
 - [x] Add safe correlated error responses that redact internal exception details; dependency/security scanning remains pending.

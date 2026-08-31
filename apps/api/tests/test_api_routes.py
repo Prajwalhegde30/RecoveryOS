@@ -21,6 +21,7 @@ from app.persistence.base import Base
 from app.persistence.models import (
     AuditEvent,
     CaseIncident,
+    Customer,
     Incident,
     Merchant,
     MerchantMembership,
@@ -992,6 +993,45 @@ def test_operational_health_requires_operator_role() -> None:
             headers=auth_headers_for("subject-health-viewer", role="VIEWER"),
         )
         assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+        settings.auth_hmac_secret = previous_auth_secret
+        session.close()
+
+
+def test_case_detail_does_not_expose_customer_contact_fields() -> None:
+    session = make_session()
+    session.add(
+        Customer(
+            id="customer-api",
+            merchant_id=MERCHANT_ID,
+            external_customer_id="external-customer-api",
+            email="customer@example.test",
+            phone="+919999999999",
+            status="active",
+        )
+    )
+    case = session.get(RecoveryCase, "case-api")
+    assert case is not None
+    case.customer_id = "customer-api"
+    session.commit()
+
+    def session_dependency() -> Generator[Session, None, None]:
+        yield from override_session(session)
+
+    app.dependency_overrides[get_db_session] = session_dependency
+    settings = get_settings()
+    previous_auth_secret = settings.auth_hmac_secret
+    settings.auth_hmac_secret = "test-secret"
+    try:
+        response = TestClient(app).get("/api/v1/cases/case-api", headers=auth_headers())
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["customer_id"] == "customer-api"
+        assert "email" not in payload
+        assert "phone" not in payload
+        assert "customer@example.test" not in response.text
+        assert "+919999999999" not in response.text
     finally:
         app.dependency_overrides.clear()
         settings.auth_hmac_secret = previous_auth_secret

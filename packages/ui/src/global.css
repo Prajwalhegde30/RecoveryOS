@@ -197,6 +197,37 @@ button {
   padding: 0.8rem 0;
 }
 
+.data-row-button {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.data-row-button:hover,
+.data-row-button:focus-visible {
+  background: var(--color-surface-muted);
+}
+
+.case-detail-card {
+  margin-top: 1.25rem;
+}
+
+.case-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.case-detail-grid div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.case-detail-note {
+  color: var(--color-text-muted);
+}
+
 .data-row p {
   margin: 0;
 }
@@ -220,6 +251,9 @@ button {
   }
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+  .case-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

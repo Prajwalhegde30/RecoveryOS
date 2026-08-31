@@ -820,7 +820,8 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 **Tasks**
 
 - [ ] Implement dashboard cards/charts/tables for at-risk, expected, recovered, natural/assisted, lift, costs, incidents, approvals, and system health.
-- [ ] Implement case list filters/sorting and case detail timeline/recommendation/policy/action/reconciliation views.
+- [ ] Implement case list filters/sorting and complete case detail timeline/recommendation/policy/action/reconciliation views.
+  - [x] Add the first typed case-detail inspection panel for root cause, probability, attempts, policy decisions, actions, and audit-event counts.
 - [ ] Implement incident view with baseline/current health, affected cases, suppression, resolution, and confidence.
 - [ ] Implement policies, integrations, approvals, and experiments/measurement views.
 - [ ] Keep pages under approximately 400–500 lines by extracting feature sections/components.
@@ -829,9 +830,9 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
 
 **Tests:** Route rendering, API loading/error/degraded states, permission presentation, case timeline, policy conflict display, dashboard metric formatting, E2E navigation.
 
-**Sprint Exit Criteria:** A merchant can answer the five dashboard questions and inspect a complete case/incident decision trail.
+**Sprint Exit Criteria:** PARTIAL — the merchant can inspect a selected case summary and latest policy reason; complete metric coverage, case decision trail, incident details, policy/integration views, and action UX remain pending.
 
-**Phase 13 Exit Criteria:** Responsive, accessible, interactive dashboard and case operations are usable without domain logic in components.
+**Phase 13 Exit Criteria:** PARTIAL — the responsive shell and initial case inspection are usable without domain logic in components; full operational dashboard and case/incident/policy workflows remain pending.
 
 ## Phase 14 — Authentication, Authorization & Tenant Isolation
 

@@ -24,6 +24,18 @@ type CaseSummary = {
   recovered_amount_minor_units: number;
   priority_score: number | null;
 };
+type CaseDetail = CaseSummary & {
+  customer_id: string | null;
+  root_cause: string | null;
+  root_cause_confidence: number | null;
+  recovery_probability: number | null;
+  recovery_attempt_count: number;
+  max_attempts: number;
+  recommendations: Array<{ action_type?: string; rationale?: string; confidence?: number }>;
+  policy_decisions: Array<{ result?: string; decisive_rule?: string; reason?: string }>;
+  actions: Array<{ action_type?: string; status?: string; failure_detail_safe?: string | null }>;
+  timeline: Array<{ event_type: string; reason: string; created_at: string }>;
+};
 type Incident = { id: string; dimension_key: string; status: string; confidence: number };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
@@ -34,6 +46,9 @@ export function DashboardClient() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +79,22 @@ export function DashboardClient() {
       setError(cause instanceof Error ? cause.message : 'Unable to load RecoveryOS data.');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadCaseDetail = useCallback(async (caseId: string) => {
+    setDetailLoading(true);
+    setDetailError(null);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/cases/${caseId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (!response.ok) throw new Error('Unable to load the selected recovery case.');
+      setSelectedCase((await response.json()) as CaseDetail);
+    } catch (cause) {
+      setDetailError(cause instanceof Error ? cause.message : 'Unable to load case details.');
+    } finally {
+      setDetailLoading(false);
     }
   }, []);
 
@@ -136,7 +167,12 @@ export function DashboardClient() {
                 {cases.length ? (
                   <div className="data-list">
                     {cases.map((item) => (
-                      <div className="data-row" key={item.id}>
+                      <button
+                        className="data-row data-row-button"
+                        key={item.id}
+                        type="button"
+                        onClick={() => void loadCaseDetail(item.id)}
+                      >
                         <div>
                           <p>
                             {item.id.slice(0, 8)} · {item.source_type.replaceAll('_', ' ')}
@@ -149,7 +185,7 @@ export function DashboardClient() {
                         <Badge tone={item.status === 'RECOVERED' ? 'success' : 'warning'}>
                           {item.status}
                         </Badge>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -179,10 +215,56 @@ export function DashboardClient() {
                 )}
               </Card>
             </div>
+            {detailLoading ? <LoadingState label="Loading case details…" /> : null}
+            {detailError ? <ErrorState message={detailError} /> : null}
+            {selectedCase ? <CaseDetailPanel item={selectedCase} /> : null}
           </>
         ) : null}
       </div>
     </main>
+  );
+}
+
+function CaseDetailPanel({ item }: { item: CaseDetail }) {
+  return (
+    <Card className="case-detail-card">
+      <CardHeader>
+        <div>
+          <CardTitle>Case {item.id.slice(0, 8)}</CardTitle>
+          <p>
+            {item.root_cause ?? 'Root cause pending'} · {item.status}
+          </p>
+        </div>
+        <Badge tone={item.status === 'RECOVERED' ? 'success' : 'warning'}>
+          {item.recovery_probability == null
+            ? 'Probability pending'
+            : `${item.recovery_probability}% likely`}
+        </Badge>
+      </CardHeader>
+      <div className="case-detail-grid">
+        <div>
+          <span className="metric-label">Attempts</span>
+          <strong>
+            {item.recovery_attempt_count}/{item.max_attempts}
+          </strong>
+        </div>
+        <div>
+          <span className="metric-label">Policy decisions</span>
+          <strong>{item.policy_decisions.length}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Actions</span>
+          <strong>{item.actions.length}</strong>
+        </div>
+        <div>
+          <span className="metric-label">Audit events</span>
+          <strong>{item.timeline.length}</strong>
+        </div>
+      </div>
+      <p className="case-detail-note">
+        {item.policy_decisions.at(-1)?.reason ?? 'No policy decision recorded yet.'}
+      </p>
+    </Card>
   );
 }
 

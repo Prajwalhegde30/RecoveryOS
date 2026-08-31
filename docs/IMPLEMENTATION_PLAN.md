@@ -987,6 +987,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Maintain the zero-configuration API/web smoke harness and optional authenticated read-path checks; the full browser-driven financial vertical slice remains pending.
   - [x] Add an explicit opt-in authenticated HTTP simulator flow that verifies labeled durable run status, tenant-scoped cases, and derived dashboard metrics without fixed totals.
   - [x] Assert configured duplicate-event scenarios through the live HTTP harness without allowing duplicate financial effects.
+  - [x] Verify an assisted-recovery simulator scenario reaches the existing durable WorkerService/provider/reconciliation path and exposes derived assisted metrics.
 
 **Files / Modules Affected:** `apps/api/tests`, `apps/web` tests, shared fixtures/scripts, CI.
 

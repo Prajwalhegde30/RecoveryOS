@@ -1,5 +1,9 @@
+import logging
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from starlette.responses import Response
 
 from app.ai.service import AIRecommendationService
 from app.api.dependencies import get_db_session
@@ -25,6 +29,28 @@ app.add_middleware(CorrelationRateLimitMiddleware)
 app.include_router(recovery_router)
 db_session_dependency = Depends(get_db_session)
 _simulated_payment_provider = SimulatedPaymentProvider()
+
+
+@app.exception_handler(Exception)
+async def safe_unhandled_exception(request: Request, _: Exception) -> Response:
+    """Return a safe correlated response without exposing internal details."""
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    logging.getLogger("recoveryos.request").exception(
+        "unhandled_request_error",
+        extra={
+            "correlation_id": correlation_id,
+            "method": request.method,
+            "path": request.url.path,
+        },
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "RecoveryOS could not complete the request",
+            "retryable": True,
+            "correlation_id": correlation_id,
+        },
+    )
 
 
 @app.get("/health/live", tags=["health"])

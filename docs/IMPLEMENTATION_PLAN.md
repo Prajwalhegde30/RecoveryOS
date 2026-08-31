@@ -828,6 +828,7 @@ Documentation is not a phase-completion prerequisite. Existing source documents 
   - [x] Expose all currently available MVP financial metrics, including at-risk, expected, recovered, natural/assisted, suppressed, unrecovered, net, cost, recovery rate, recovered-case count, and median time to recovery.
   - [x] Expose the existing dashboard metrics, case list, incident list, active policy, and operational health reads in the shared UI shell.
   - [x] Add a reusable shared metric comparison chart for persisted at-risk, expected, recovered, and net recovery values with an honest empty state.
+  - [x] Keep primary dashboard metrics available when secondary case or incident reads fail; failed sections expose safe retryable UI states instead of blanking the whole dashboard.
   - [ ] Add experiment lift only with the optional Stretch experiment/measurement path; it is not an MVP dashboard dependency.
 - [x] Implement case list status filtering and priority/newest presentation sorting through the typed API boundary.
 - [x] Implement case detail timeline/recommendation/policy/action/reconciliation views.

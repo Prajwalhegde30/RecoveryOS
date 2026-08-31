@@ -40,6 +40,8 @@ export function DashboardClient() {
   const [operationalMetrics, setOperationalMetrics] = useState<OperationalMetrics | null>(null);
   const [policy, setPolicy] = useState<CurrentPolicy | null>(null);
   const [approvals, setApprovals] = useState<ApprovalQueueItem[] | null>(null);
+  const [casesError, setCasesError] = useState<string | null>(null);
+  const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [caseStatus, setCaseStatus] = useState('');
   const [sortByPriority, setSortByPriority] = useState(true);
@@ -62,14 +64,31 @@ export function DashboardClient() {
     setLoading(true);
     setError(null);
     try {
-      const [dashboardResult, casesResult, incidentsResult] = await Promise.all([
+      const [dashboardResult, casesResult, incidentsResult] = await Promise.allSettled([
         api.dashboard(),
         api.cases(caseStatus || undefined),
         api.incidents(),
       ]);
-      setDashboard(dashboardResult);
-      setCases(casesResult);
-      setIncidents(incidentsResult);
+      if (dashboardResult.status === 'rejected') {
+        throw dashboardResult.reason;
+      }
+      setDashboard(dashboardResult.value);
+      setCasesError(
+        casesResult.status === 'rejected'
+          ? casesResult.reason instanceof Error
+            ? casesResult.reason.message
+            : 'Recovery cases are temporarily unavailable.'
+          : null,
+      );
+      setCases(casesResult.status === 'fulfilled' ? casesResult.value : []);
+      setIncidentsError(
+        incidentsResult.status === 'rejected'
+          ? incidentsResult.reason instanceof Error
+            ? incidentsResult.reason.message
+            : 'Incident data is temporarily unavailable.'
+          : null,
+      );
+      setIncidents(incidentsResult.status === 'fulfilled' ? incidentsResult.value : []);
       const [healthResult, metricsResult, policyResult, approvalsResult] = await Promise.allSettled(
         [api.operationalHealth(), api.operationalMetrics(), api.currentPolicy(), api.approvals()],
       );
@@ -242,7 +261,9 @@ export function DashboardClient() {
                     <Badge>{visibleCases.length} shown</Badge>
                   </div>
                 </CardHeader>
-                {visibleCases.length ? (
+                {casesError ? (
+                  <ErrorState message={casesError} onRetry={() => void load()} />
+                ) : visibleCases.length ? (
                   <div className="data-list">
                     {visibleCases.map((item) => (
                       <button
@@ -276,7 +297,9 @@ export function DashboardClient() {
                 <CardHeader>
                   <CardTitle>Systemic degradation</CardTitle>
                 </CardHeader>
-                {incidents.length ? (
+                {incidentsError ? (
+                  <ErrorState message={incidentsError} onRetry={() => void load()} />
+                ) : incidents.length ? (
                   <div className="data-list">
                     {incidents.map((item) => (
                       <div className="data-row" key={item.id}>

@@ -42,7 +42,7 @@ import {
   formatWindow,
 } from './lib/dashboard-formatters';
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 const merchantId = process.env.NEXT_PUBLIC_MERCHANT_ID ?? '';
 const authToken = process.env.NEXT_PUBLIC_AUTH_TOKEN ?? '';
 

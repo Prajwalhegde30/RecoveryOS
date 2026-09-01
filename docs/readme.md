@@ -8,7 +8,7 @@
 
 RecoveryOS is a planned merchant operations platform for revenue recovery. It turns failed payments, checkout abandonment, recurring-payment failures, overdue invoices, and correlated payment degradation into prioritized Recovery Cases. It diagnoses likely causes, estimates recoverability, selects a bounded action, applies deterministic policy, executes or schedules work, reconciles payment truth, and measures natural versus assisted recovery.
 
-The repository contains the product/engineering documentation baseline and the implemented Phase 0 workspace scaffold. The implementation stack and runtime shape remain a proposed architecture, while the web shell, API health boundary, shared UI package, quality gates, and smoke checks are now available.
+The repository contains the implemented RecoveryOS modular monolith: a FastAPI API and worker, PostgreSQL persistence and migrations, provider/simulator workflows, deterministic scoring and fallback, policy enforcement, reconciliation, attribution, tenant-scoped APIs, and a Next.js operations dashboard.
 
 ## Problem
 
@@ -56,19 +56,19 @@ Reusable components must not be placed in `apps/web/app/components`. Business lo
 
 ## Documentation map
 
-| File | Purpose |
-|---|---|
-| `docs/PRD.md` | What/why: product scope, MVP, business rules, acceptance criteria |
-| `docs/ARCHITECTURE.md` | How the system is structured and deployed |
-| `docs/DATA_MODEL.md` | Conceptual entities, constraints, identities, and transactions |
-| `docs/DECISIONS.md` | Why major technical/engineering choices were made |
-| `docs/IMPLEMENTATION_PLAN.md` | Phase → sprint → task → subtask execution roadmap |
-| `docs/appflow.md` | End-to-end behavior and alternate flows |
-| `docs/data_API.md` | Application-to-persistence data access contract |
-| `docs/phase_scope.md` | Business/technical boundary and acceptance of each phase |
-| `docs/requirements.md` | Traceable engineering requirement catalogue |
-| `docs/schema.md` | Proposed concrete database schema reference |
-| `docs/supabase-setup.md` | Not created: Supabase is not part of the approved architecture |
+| File                          | Purpose                                                           |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `docs/PRD.md`                 | What/why: product scope, MVP, business rules, acceptance criteria |
+| `docs/ARCHITECTURE.md`        | How the system is structured and deployed                         |
+| `docs/DATA_MODEL.md`          | Conceptual entities, constraints, identities, and transactions    |
+| `docs/DECISIONS.md`           | Why major technical/engineering choices were made                 |
+| `docs/IMPLEMENTATION_PLAN.md` | Phase → sprint → task → subtask execution roadmap                 |
+| `docs/appflow.md`             | End-to-end behavior and alternate flows                           |
+| `docs/data_API.md`            | Application-to-persistence data access contract                   |
+| `docs/phase_scope.md`         | Business/technical boundary and acceptance of each phase          |
+| `docs/requirements.md`        | Traceable engineering requirement catalogue                       |
+| `docs/schema.md`              | Proposed concrete database schema reference                       |
+| `docs/supabase-setup.md`      | Not created: Supabase is not part of the approved architecture    |
 
 Additional implementation-contract documents should be created only when a later implementation decision explicitly requires them.
 
@@ -84,7 +84,7 @@ The Phase 0 development baseline requires:
 - optional provider credentials only when a real/test adapter is enabled;
 - optional AI provider credentials only when an AI adapter is enabled.
 
-The current repository provides package manifests, a lockfile, runtime scripts, an environment template, quality tooling, SQLAlchemy persistence metadata, an Alembic baseline migration, and a Docker Compose PostgreSQL service. Product workflow commands remain planned.
+The current repository provides package manifests, a lockfile, runtime scripts, an environment template, quality tooling, SQLAlchemy persistence, the complete Alembic migration chain, a Docker Compose PostgreSQL service on host port 5433, simulator lifecycle APIs, and worker-backed recovery workflows.
 
 ## Installation and environment configuration
 
@@ -146,6 +146,8 @@ pnpm dev:api         Start the API health boundary (activate .venv first)
 python -m app.workers --merchant-id <merchant-id>
                       Start the durable action worker (run from apps/api)
 pnpm e2e:smoke       Verify running API and web processes
+pnpm demo:reset      Recreate the dedicated recoveryos_demo database and run migrations
+pnpm demo:e2e        Run the deterministic authenticated simulator batch and verify derived dashboard metrics
 pnpm test            Run the current workspace tests
 pnpm build           Build the current workspace artifacts
 ```
@@ -166,7 +168,23 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm e2e:smoke       # requires API and web running
+pnpm demo:reset      # requires Docker and the RecoveryOS PostgreSQL container
+pnpm demo:e2e        # requires API, PostgreSQL, an authenticated admin token, and a configured merchant policy
 ```
+
+### Clean-state demo workflow
+
+With the RecoveryOS PostgreSQL container running on host port 5433, use the dedicated demo database:
+
+```powershell
+$env:DEMO_AUTH_SECRET = 'local-demo-only'
+pnpm demo:reset
+$env:DATABASE_URL = 'postgresql+psycopg://recoveryos:recoveryos@127.0.0.1:5433/recoveryos_demo'
+$env:DEMO_AUTH_TOKEN = (node scripts/run-python.mjs apps/api/scripts/seed_demo.py)
+pnpm demo:e2e
+```
+
+Start the API with the same `DATABASE_URL` and `DEMO_AUTH_SECRET`, then start the worker for `demo-merchant`; the simulator batch exercises ingestion, case creation, diagnosis, fallback recommendation, policy evaluation, recovery action, reconciliation, attribution, and dashboard metrics. Re-running `pnpm demo:reset` drops only `recoveryos_demo`, recreates it, and reruns migrations, so no prior demo facts remain. The reset command refuses any database name other than `recoveryos_demo`.
 
 The API test/typecheck commands require the repository virtual environment to be active or its Python directory on PATH.
 

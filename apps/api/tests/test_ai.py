@@ -1,5 +1,8 @@
+import io
+import json
 from datetime import UTC, datetime
 from time import sleep
+from urllib.error import HTTPError
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -10,9 +13,12 @@ from app.ai.contracts import ActionType, RecommendationEvidence, RecommendationO
 from app.ai.factory import configured_ai_provider
 from app.ai.fallback import deterministic_fallback
 from app.ai.provider import (
+    AIAuthenticationError,
     AIOutputValidationError,
+    AIRateLimitError,
     AITimeoutError,
     AITransportError,
+    GroqTransport,
     ProviderAdapter,
     StaticAIProvider,
 )
@@ -117,6 +123,94 @@ def test_provider_failures_are_typed_and_safe() -> None:
             model_version="model-v1",
         ).recommend(evidence())
 
+    with pytest.raises(AIAuthenticationError, match="authentication failed"):
+        ProviderAdapter(
+            lambda payload: (_ for _ in ()).throw(AIAuthenticationError("authentication failed")),
+            timeout_seconds=1,
+            prompt_version="prompt-v1",
+            model_version="model-v1",
+        ).recommend(evidence())
+
+
+def test_groq_transport_sends_minimized_evidence_and_parses_structured_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class Response(io.BytesIO):
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self.close()
+
+    def fake_urlopen(request: object, *, timeout: float) -> Response:
+        del timeout
+        captured["request"] = request
+        return Response(
+            json.dumps(
+                {"choices": [{"message": {"content": json.dumps(recommendation())}}]}
+            ).encode()
+        )
+
+    monkeypatch.setattr("app.ai.provider.urlopen", fake_urlopen)
+    output = ProviderAdapter(
+        GroqTransport(api_key="test-only", model="openai/gpt-oss-20b", timeout_seconds=2),
+        timeout_seconds=2,
+        prompt_version="prompt-v3",
+        model_version="openai/gpt-oss-20b",
+    ).recommend(evidence())
+    request = captured["request"]
+    assert output.action == ActionType.WAIT
+    assert output.prompt_version == "prompt-v3"
+    assert output.model_version == "openai/gpt-oss-20b"
+    body = json.loads(request.data.decode())  # type: ignore[union-attr]
+    sent_evidence = json.loads(body["messages"][1]["content"])
+    assert sent_evidence == evidence().model_dump(mode="json")
+    assert "merchant_id" not in sent_evidence
+    assert body["response_format"]["type"] == "json_schema"
+    assert body["tool_choice"] == "none"
+
+
+def test_groq_transport_maps_authentication_rate_limit_and_malformed_responses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def error_urlopen(request: object, *, timeout: float) -> object:
+        del request, timeout
+        raise HTTPError("https://api.groq.com", 401, "unauthorized", {}, None)
+
+    monkeypatch.setattr("app.ai.provider.urlopen", error_urlopen)
+    with pytest.raises(AIAuthenticationError):
+        GroqTransport(api_key="test-only", model="model", timeout_seconds=1)(
+            evidence().model_dump(mode="json")
+        )
+
+    def rate_urlopen(request: object, *, timeout: float) -> object:
+        del request, timeout
+        raise HTTPError("https://api.groq.com", 429, "rate limited", {}, None)
+
+    monkeypatch.setattr("app.ai.provider.urlopen", rate_urlopen)
+    with pytest.raises(AIRateLimitError):
+        GroqTransport(api_key="test-only", model="model", timeout_seconds=1)(
+            evidence().model_dump(mode="json")
+        )
+
+    class Response(io.BytesIO):
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self.close()
+
+    monkeypatch.setattr(
+        "app.ai.provider.urlopen",
+        lambda request, timeout: Response(b'{"choices":[{"message":{"content":"not-json"}}]}'),
+    )
+    with pytest.raises(AIOutputValidationError):
+        GroqTransport(api_key="test-only", model="model", timeout_seconds=1)(
+            evidence().model_dump(mode="json")
+        )
+
     with pytest.raises(AITimeoutError, match="timed out"):
         ProviderAdapter(
             lambda payload: (sleep(0.05), recommendation())[1],
@@ -126,11 +220,22 @@ def test_provider_failures_are_typed_and_safe() -> None:
         ).recommend(evidence())
 
 
-def test_ai_factory_selects_deterministic_fallback_or_validates_transport_mode() -> None:
+def test_ai_factory_selects_deterministic_fallback_or_validates_transport_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.config import Settings
 
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     deterministic = Settings(ai_provider="deterministic")
     assert configured_ai_provider(deterministic) is None
+
+    with pytest.raises(ValueError, match="requires GROQ_API_KEY"):
+        configured_ai_provider(Settings(ai_provider="groq", ai_api_key=None))
+
+    groq = configured_ai_provider(
+        Settings(ai_provider="groq", ai_api_key="test-only", ai_model="model")
+    )
+    assert groq is not None
 
     with pytest.raises(ValueError, match="requires an application-provided transport"):
         configured_ai_provider(

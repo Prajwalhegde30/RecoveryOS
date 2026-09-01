@@ -117,13 +117,15 @@ RAZORPAY_KEY_SECRET         # server-only
 RAZORPAY_WEBHOOK_SECRET     # server-only
 AI_PROVIDER
 AI_MODEL
-AI_API_KEY                  # server-only
-AI_TIMEOUT_MS
+GROQ_API_KEY                # required only for groq; server-only
+AI_TIMEOUT_MS               # provider timeout in milliseconds
 LOG_LEVEL
 SIMULATOR_SEED
 ```
 
-The authentication variables above map to the API settings names. `AUTH_MODE=jwks` requires `AUTH_JWKS_URL` and validates asymmetric provider-issued JWTs; it never falls back to HMAC. `AUTH_MODE=local` requires `AUTH_HMAC_SECRET` for the deterministic demo path. Keep secrets out of browser bundles and logs.
+The authentication variables above map to the API settings names. `AUTH_MODE=jwks` requires `AUTH_JWKS_URL` and validates asymmetric provider-issued JWTs; it never falls back to HMAC. `AUTH_MODE=local` requires `AUTH_HMAC_SECRET` for the deterministic demo path. `AI_PROVIDER=groq` requires the server-side `GROQ_API_KEY`; it is never read by the web app or exposed in browser configuration. Keep secrets out of browser bundles and logs.
+
+For a real Groq-backed run, set `AI_PROVIDER=groq`, `GROQ_API_KEY`, `AI_MODEL` (the default is `openai/gpt-oss-20b`), and `AI_TIMEOUT_MS` on the API process only. Start the API with those variables, then run the authenticated simulator workflow with `AI_PROVIDER=groq` in the shell running `pnpm demo:e2e`. The output must contain `provider":"groq"` and `recommendation_sources":["AI"]`; `DETERMINISTIC_FALLBACK` indicates fallback instead. Never put `GROQ_API_KEY` in `NEXT_PUBLIC_*` variables.
 
 ## Database and migrations
 

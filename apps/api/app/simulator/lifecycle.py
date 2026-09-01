@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.ai.provider import AIProvider
 from app.cases.state_machine import ActorType
 from app.persistence.models import AuditEvent, SimulatorRun
 from app.simulator.service import SimulatorConfig, SimulatorRunResult, SimulatorService
@@ -32,11 +33,14 @@ class SimulatorLifecycleResult:
 class SimulatorLifecycleService:
     """Persists simulator lifecycle while preserving all generated domain facts."""
 
-    def __init__(self, session: Session, merchant_id: str) -> None:
+    def __init__(
+        self, session: Session, merchant_id: str, provider: AIProvider | None = None
+    ) -> None:
         if not merchant_id:
             raise ValueError("merchant_id is required")
         self.session = session
         self.merchant_id = merchant_id
+        self.provider = provider
 
     def start(
         self,
@@ -94,7 +98,7 @@ class SimulatorLifecycleService:
                 run.started_at = _utc_now()
                 self._audit(run, "SIMULATOR_RUN_STARTED", actor_id, correlation_id)
             self.session.rollback()
-            result = SimulatorService(self.session, config).run()
+            result = SimulatorService(self.session, config, ai_provider=self.provider).run()
             result_json = _result_json(result)
             self.session.rollback()
             with self.session.begin():

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 
+from app.ai.factory import configured_ai_provider
 from app.ai.service import AIRecommendationService
 from app.api.dependencies import get_db_session, get_session_factory
 from app.api.routes import router as recovery_router
@@ -27,6 +28,7 @@ from app.scoring.economics import ScoringConfig
 from app.scoring.service import CaseAnalysisService
 
 settings = get_settings()
+_ai_provider = configured_ai_provider(settings)
 app = FastAPI(title="RecoveryOS API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -150,7 +152,9 @@ async def receive_webhook(
         session.rollback()
         # The external provider adapter is selected once provider configuration is approved.
         # Until then, the same persistence path records the deterministic safe fallback.
-        AIRecommendationService(session, event.merchant_id, provider=None).fallback(case_id)
+        AIRecommendationService(
+            session, event.merchant_id, provider=_ai_provider
+        ).recommend_with_fallback(case_id, minimum_confidence_percent=1)
     return result
 
 

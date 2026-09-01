@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.actions.service import ActionCommandService, ActionCommandStatus
 from app.ai.contracts import ActionType
+from app.ai.provider import AIProvider
 from app.ai.service import AIRecommendationService
 from app.attribution.service import AttributionConfig, AttributionService
 from app.cases.identity import RECOVERABLE_EVENT_TYPES
@@ -130,9 +131,12 @@ class SimulatorService:
 
     provider_name = "simulator"
 
-    def __init__(self, session: Session, config: SimulatorConfig) -> None:
+    def __init__(
+        self, session: Session, config: SimulatorConfig, *, ai_provider: AIProvider | None = None
+    ) -> None:
         self.session = session
         self.config = config
+        self.ai_provider = ai_provider
         self._random = random.Random(config.seed)
         self._payment_provider = SimulatedPaymentProvider()
 
@@ -224,10 +228,8 @@ class SimulatorService:
                 ).analyze(case_id)
                 self.session.rollback()
                 AIRecommendationService(
-                    self.session,
-                    event.merchant_id,
-                    provider=None,
-                ).fallback(case_id)
+                    self.session, event.merchant_id, provider=self.ai_provider
+                ).recommend_with_fallback(case_id, minimum_confidence_percent=1)
         return result, case
 
     def _process_auxiliary_event(

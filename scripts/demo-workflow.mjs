@@ -2,6 +2,7 @@ const apiBaseUrl = process.env.API_BASE_URL ?? 'http://127.0.0.1:8000';
 const token = process.env.DEMO_AUTH_TOKEN;
 const seed = Number(process.env.DEMO_SEED ?? 20260901);
 const runKey = process.env.DEMO_RUN_KEY ?? `seed:${seed}`;
+const providerMode = (process.env.AI_PROVIDER ?? 'deterministic').trim().toLowerCase();
 
 if (!token || !Number.isInteger(seed)) {
   throw new Error('DEMO_AUTH_TOKEN and an integer DEMO_SEED are required');
@@ -51,6 +52,16 @@ if (run.recommendation_count !== run.case_count || run.duplicate_event_count < 1
   throw new Error('demo simulator did not exercise normal recommendation/idempotency paths');
 }
 const stored = await request(`/api/v1/simulator/runs/${encodeURIComponent(run.run_id)}`);
+const caseDetail = await request(`/api/v1/cases/${encodeURIComponent(run.case_ids[0])}`);
+const recommendationSources = [
+  ...new Set(caseDetail.recommendations.map((recommendation) => recommendation.source)),
+];
+const expectedSource = providerMode === 'groq' ? 'AI' : 'DETERMINISTIC_FALLBACK';
+if (!recommendationSources.includes(expectedSource)) {
+  throw new Error(
+    `demo expected ${expectedSource} recommendation but observed ${recommendationSources.join(', ') || 'none'}`,
+  );
+}
 const dashboard = await request('/api/v1/dashboard');
 if (
   stored.status !== 'COMPLETED' ||
@@ -68,6 +79,8 @@ console.log(
     recommendations: run.recommendation_count,
     duplicate_events: run.duplicate_event_count,
     success_events: run.success_event_count,
+    provider: providerMode,
+    recommendation_sources: recommendationSources,
     revenue_at_risk_minor_units: dashboard.metrics.revenue_at_risk_minor_units,
     recovered_minor_units: dashboard.metrics.recovered_minor_units,
   }),

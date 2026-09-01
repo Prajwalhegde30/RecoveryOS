@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     scoring_confidence_weight_percent: int = Field(default=50, ge=0, le=100)
     scoring_version: str = "scoring-v1"
     ai_provider: str = "deterministic"
-    ai_model: str = ""
-    ai_timeout_ms: int | None = Field(default=None, gt=0)
+    ai_model: str = "openai/gpt-oss-20b"
+    ai_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("GROQ_API_KEY", "ai_api_key")
+    )
+    ai_timeout_ms: int = Field(default=5000, gt=0)
     ai_prompt_version: str = "prompt-v1"
     ai_schema_version: str = "recommendation-v1"
     auth_issuer: str = "recoveryos-local"
@@ -47,6 +50,8 @@ class Settings(BaseSettings):
                 raise ValueError("production requires webhook_secret")
         if self.auth_mode == "jwks" and not self.auth_jwks_url:
             raise ValueError("jwks authentication requires auth_jwks_url")
+        if self.ai_provider.strip().lower() == "groq" and not self.ai_api_key:
+            raise ValueError("groq AI provider requires GROQ_API_KEY")
         return self
 
 

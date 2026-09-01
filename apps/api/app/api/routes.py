@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.actions.service import ActionCommandService
+from app.ai.factory import configured_ai_provider
 from app.api.dependencies import (
     admin_dependency,
     get_db_session,
@@ -562,7 +563,9 @@ def run_simulator(
             provider_failure_indices=frozenset(request.provider_failure_indices),
             attribution_window_seconds=request.attribution_window_seconds,
         )
-        lifecycle = SimulatorLifecycleService(session, merchant_id)
+        lifecycle = SimulatorLifecycleService(
+            session, merchant_id, provider=configured_ai_provider(get_settings())
+        )
         run = lifecycle.start(
             config,
             run_key=request.run_key or f"seed:{request.seed}",

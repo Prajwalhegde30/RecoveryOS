@@ -170,6 +170,7 @@ def test_groq_transport_sends_minimized_evidence_and_parses_structured_response(
     assert "merchant_id" not in sent_evidence
     assert body["response_format"]["type"] == "json_schema"
     assert body["tool_choice"] == "none"
+    assert request.get_header("User-agent") == "RecoveryOS/0.1.0"
 
 
 def test_groq_transport_maps_authentication_rate_limit_and_malformed_responses(

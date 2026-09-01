@@ -130,6 +130,7 @@ class GroqTransport:
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "RecoveryOS/0.1.0",
             },
             method="POST",
         )
